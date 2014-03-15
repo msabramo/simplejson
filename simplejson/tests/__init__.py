@@ -3,25 +3,6 @@ import unittest
 import doctest
 import sys
 
-class OptionalExtensionTestSuite(unittest.TestSuite):
-    def run(self, result):
-        import simplejson
-        run = unittest.TestSuite.run
-        run(self, result)
-        if simplejson._import_c_make_encoder() is None:
-            TestMissingSpeedups().run(result)
-        else:
-            simplejson._toggle_speedups(False)
-            run(self, result)
-            simplejson._toggle_speedups(True)
-        return result
-
-class TestMissingSpeedups(unittest.TestCase):
-    def runTest(self):
-        if hasattr(sys, 'pypy_translation_info'):
-            "PyPy doesn't need speedups! :)"
-        elif hasattr(self, 'skipTest'):
-            self.skipTest('_speedups.so is missing!')
 
 def additional_tests(suite=None):
     import simplejson
@@ -63,18 +44,26 @@ def all_tests_suite():
         'simplejson.tests.test_tool',
         'simplejson.tests.test_for_json',
     ])
-    suite = additional_tests(suite)
-    return OptionalExtensionTestSuite([suite])
+    return additional_tests(suite)
 
 
 def main():
+    import simplejson
+
     runner = unittest.TextTestRunner(verbosity=1 + sys.argv.count('-v'))
-    suite = all_tests_suite()
-    raise SystemExit(not runner.run(suite).wasSuccessful())
+
+    first_run = runner.run(all_tests_suite()).wasSuccessful()
+    if simplejson._import_c_make_encoder() is not None:
+        simplejson._toggle_speedups(False)
+        runner.stream.write('Pure Python, without C speedups...\n')
+        second_run = runner.run(all_tests_suite()).wasSuccessful()
+        simplejson._toggle_speedups(True)
+    else:
+        second_run = True
+    raise SystemExit(not (first_run and second_run))
 
 
 if __name__ == '__main__':
     import os
-    import sys
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
     main()
