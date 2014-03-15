@@ -1,23 +1,20 @@
-simplejson is a simple, fast, complete, correct and extensible
-JSON <http://json.org> encoder and decoder for Python 2.5+
-and Python 3.3+.  It is pure Python code with no dependencies,
-but includes an optional C extension for a serious speed boost.
+nssjson is a (not so) simple, fast, complete, correct and extensible JSON <http://json.org>
+encoder and decoder for Python 2.5+ and Python 3.3+.  It is pure Python code with no
+dependencies, but includes an optional C extension for a serious speed boost.
 
-The latest documentation for simplejson can be read online here:
-http://simplejson.readthedocs.org/
+nssjson_ is a fork of simplejson_ that fulfills my need of having a good performance JSON
+encoder/decoder able to handle also Python's datetime, even if with an admittedly non-standard
+and faulty heuristic that was not considered within the scope\ [#]_ of the original product.
 
-simplejson is the externally maintained development version of the
-json library included with Python 2.6 and Python 3.0, but maintains
-backwards compatibility with Python 2.5.
+Pratically, the difference is that, out of the box, you have::
 
-The encoder can be specialized to provide serialization in any kind of
-situation, without any special support by the objects to be serialized
-(somewhat like pickle). This is best done with the ``default`` kwarg
-to dumps.
+    >>> import datetime
+    >>> import nssjson
+    >>> now = datetime.datetime.now()
+    >>> nssjson.loads(nssjson.dumps(now, iso_datetime=True), iso_datetime=True) == now
+    True
 
-The decoder can handle incoming JSON strings of any specified encoding
-(UTF-8 by default). It can also be specialized to post-process JSON
-objects with the ``object_hook`` or ``object_pairs_hook`` kwargs. This
-is particularly useful for implementing protocols such as JSON-RPC
-that have a richer type system than JSON itself.
-
+.. _nssjson: https://github.com/lelit/nssjson
+.. _simplejson: https://github.com/simplejson/simplejson
+.. [#] See https://github.com/simplejson/simplejson/issues/86 and
+       https://github.com/simplejson/simplejson/pull/89

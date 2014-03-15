@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# simplejson documentation build configuration file, created by
+# nssjson documentation build configuration file, created by
 # sphinx-quickstart on Fri Sep 26 18:58:30 2008.
 #
 # This file is execfile()d with the current directory set to its containing dir.
@@ -35,7 +35,7 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General substitutions.
-project = 'simplejson'
+project = 'nssjson'
 copyright = '2014, Bob Ippolito'
 
 # The default replacements for |version| and |release|, also used in various
@@ -142,7 +142,7 @@ html_use_modindex = False
 html_file_suffix = '.html'
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'simplejsondoc'
+htmlhelp_basename = 'nssjsondoc'
 
 
 # Options for LaTeX output
@@ -157,7 +157,7 @@ htmlhelp_basename = 'simplejsondoc'
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title, author, document class [howto/manual]).
 latex_documents = [
-  ('index', 'simplejson.tex', 'simplejson Documentation',
+  ('index', 'nssjson.tex', 'nssjson Documentation',
    'Bob Ippolito', 'manual'),
 ]
 

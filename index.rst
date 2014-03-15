@@ -1,7 +1,7 @@
-:mod:`simplejson` --- JSON encoder and decoder
-==============================================
+:mod:`nssjson` --- Not So Simple JSON encoder and decoder
+=========================================================
 
-.. module:: simplejson
+.. module:: nssjson
    :synopsis: Encode and decode the JSON format.
 .. moduleauthor:: Bob Ippolito <bob@redivi.com>
 .. sectionauthor:: Bob Ippolito <bob@redivi.com>
@@ -9,19 +9,24 @@
 JSON (JavaScript Object Notation) <http://json.org> is a subset of JavaScript
 syntax (ECMA-262 3rd edition) used as a lightweight data interchange format.
 
-:mod:`simplejson` exposes an API familiar to users of the standard library
-:mod:`marshal` and :mod:`pickle` modules. It is the externally maintained
-version of the :mod:`json` library contained in Python 2.6, but maintains
-compatibility with Python 2.5 and (currently) has
-significant performance advantages, even without using the optional C
-extension for speedups. :mod:`simplejson` is also supported on Python 3.3+.
+:mod:`nssjson` exposes an API familiar to users of the standard library `marshal` and
+:mod::mod:`pickle` modules. It is the externally maintained version of the :mod:`json` library
+:mod:contained in Python 2.6, but maintains compatibility with Python 2.5 and (currently) has
+:mod:significant performance advantages, even without using the optional C extension for
+:mod:speedups. :mod:`nssjson` is also supported on Python 3.3+.
 
-Development of simplejson happens on Github:
-http://github.com/simplejson/simplejson
+.. warning:: This is a **fork** of `simplejson <https://github.com/simplejson/simplejson>`_,
+             made from version 3.3.3. While I'll try to integrate future work done on the
+             original, the purpose of this fork is to fulfill my own needs about specialized
+             serializers and decoders for Python's datetime objects that are beyond the scope
+             of the original product.
+
+Development of nssjson happens on Github:
+https://github.com/lelit/nssjson
 
 Encoding basic Python object hierarchies::
 
-    >>> import simplejson as json
+    >>> import nssjson as json
     >>> json.dumps(['foo', {'bar': ('baz', None, 1.0, 2)}])
     '["foo", {"bar": ["baz", null, 1.0, 2]}]'
     >>> print(json.dumps("\"foo\bar"))
@@ -32,7 +37,7 @@ Encoding basic Python object hierarchies::
     "\\"
     >>> print(json.dumps({"c": 0, "b": 0, "a": 0}, sort_keys=True))
     {"a": 0, "b": 0, "c": 0}
-    >>> from simplejson.compat import StringIO
+    >>> from nssjson.compat import StringIO
     >>> io = StringIO()
     >>> json.dump(['streaming API'], io)
     >>> io.getvalue()
@@ -40,14 +45,14 @@ Encoding basic Python object hierarchies::
 
 Compact encoding::
 
-    >>> import simplejson as json
+    >>> import nssjson as json
     >>> obj = [1,2,3,{'4': 5, '6': 7}]
     >>> json.dumps(obj, separators=(',', ':'), sort_keys=True)
     '[1,2,3,{"4":5,"6":7}]'
 
 Pretty printing::
 
-    >>> import simplejson as json
+    >>> import nssjson as json
     >>> print(json.dumps({'4': 5, '6': 7}, sort_keys=True, indent=4 * ' '))
     {
         "4": 5,
@@ -56,20 +61,20 @@ Pretty printing::
 
 Decoding JSON::
 
-    >>> import simplejson as json
+    >>> import nssjson as json
     >>> obj = [u'foo', {u'bar': [u'baz', None, 1.0, 2]}]
     >>> json.loads('["foo", {"bar":["baz", null, 1.0, 2]}]') == obj
     True
     >>> json.loads('"\\"foo\\bar"') == u'"foo\x08ar'
     True
-    >>> from simplejson.compat import StringIO
+    >>> from nssjson.compat import StringIO
     >>> io = StringIO('["streaming API"]')
     >>> json.load(io)[0] == 'streaming API'
     True
 
 Using Decimal instead of float::
 
-    >>> import simplejson as json
+    >>> import nssjson as json
     >>> from decimal import Decimal
     >>> json.loads('1.1', use_decimal=True) == Decimal('1.1')
     True
@@ -78,7 +83,7 @@ Using Decimal instead of float::
 
 Specializing JSON object decoding::
 
-    >>> import simplejson as json
+    >>> import nssjson as json
     >>> def as_complex(dct):
     ...     if '__complex__' in dct:
     ...         return complex(dct['real'], dct['imag'])
@@ -93,7 +98,7 @@ Specializing JSON object decoding::
 
 Specializing JSON object encoding::
 
-    >>> import simplejson as json
+    >>> import nssjson as json
     >>> def encode_complex(obj):
     ...     if isinstance(obj, complex):
     ...         return [obj.real, obj.imag]
@@ -112,7 +117,7 @@ Handling naive datetime.* objects::
     >>> born = datetime.datetime(1, 12, 25, 10, 20, 30, 123456)
     >>> date = born.date()
     >>> time = born.time()
-    >>> import simplejson as json
+    >>> import nssjson as json
     >>> json.dumps([born, date, time], iso_datetime=True)
     '["0001-12-25T10:20:30.123456", "0001-12-25", "10:20:30.123456"]'
     >>> json.loads(json.dumps([born, date, time], iso_datetime=True),
@@ -132,8 +137,8 @@ is supported too::
 Handling non-naive datetime instances::
 
     >>> import datetime
-    >>> import simplejson as json
-    >>> from simplejson.compat import utc
+    >>> import nssjson as json
+    >>> from nssjson.compat import utc
     >>> moon = datetime.datetime(1999, 9, 9, 9, 9, 9, 9, utc)
     >>> json.dumps(moon, iso_datetime=True)
     '"1999-09-09T09:09:09.000009Z"'
@@ -146,7 +151,7 @@ Naive datetime instances may be coerced to UTC and timezone aware converted to U
     '"1999-09-09T09:09:09.000009Z"'
     >>> json.dumps(born, iso_datetime=True, utc_datetime=True)
     '"0001-12-25T10:20:30.123456Z"'
-    >>> from simplejson.tests.test_datetime import FixedOffset
+    >>> from nssjson.tests.test_datetime import FixedOffset
     >>> Rome = FixedOffset(120, "RMT")
     >>> asiwrite = datetime.datetime(2014, 3, 15, 16, 10, 40, 0, Rome)
     >>> json.dumps(asiwrite, iso_datetime=True)
@@ -168,13 +173,13 @@ the scanner recognizes also times and timestamps with only three digits after th
 
 .. highlight:: none
 
-Using :mod:`simplejson.tool` from the shell to validate and pretty-print::
+Using :mod:`nssjson.tool` from the shell to validate and pretty-print::
 
-    $ echo '{"json":"obj"}' | python -m simplejson.tool
+    $ echo '{"json":"obj"}' | python -m nssjson.tool
     {
         "json": "obj"
     }
-    $ echo '{ 1.2:3.4}' | python -m simplejson.tool
+    $ echo '{ 1.2:3.4}' | python -m nssjson.tool
     Expecting property name enclosed in double quotes: line 1 column 3 (char 2)
 
 .. highlight:: python
@@ -742,7 +747,7 @@ Encoders and decoders
       Return a JSON string representation of a Python data structure, *o*.  For
       example::
 
-        >>> import simplejson as json
+        >>> import nssjson as json
         >>> json.JSONEncoder().encode({"foo": ["bar", "baz"]})
         '{"foo": ["bar", "baz"]}'
 
