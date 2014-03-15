@@ -114,19 +114,12 @@ Handling naive datetime.* objects::
     >>> time = born.time()
     >>> import simplejson as json
     >>> json.dumps([born, date, time], iso_datetime=True)
-    '["0001-12-25T10:20:30.123456Z", "0001-12-25", "10:20:30.123456Z"]'
+    '["0001-12-25T10:20:30.123456", "0001-12-25", "10:20:30.123456"]'
     >>> json.loads(json.dumps([born, date, time], iso_datetime=True),
     ...            iso_datetime=True) == [born, date, time]
     True
     >>> json.dumps({date: time}, iso_datetime=True)
-    '{"0001-12-25": "10:20:30.123456Z"}'
-
-The final "Z" (that stands for "Zulu" time zone, a.k.a. "UTC") is optional::
-
-    >>> json.loads('"10:20:30.123456"', iso_datetime=True) == time
-    True
-    >>> json.loads('"10:20:30"', iso_datetime=True) == time.replace(microsecond=0)
-    True
+    '{"0001-12-25": "10:20:30.123456"}'
 
 For the sake of convenience, the alternative syntax with a space instead of "T"
 is supported too::
@@ -135,7 +128,32 @@ is supported too::
     True
     >>> json.loads('"0001-12-25 10:20:30.123456"', iso_datetime=True) == born
     True
-    >>> json.loads('"0001-12-25 10:20:30.123456Z"', iso_datetime=True) == born
+
+Handling non-naive datetime instances::
+
+    >>> import datetime
+    >>> import simplejson as json
+    >>> from simplejson.compat import utc
+    >>> moon = datetime.datetime(1999, 9, 9, 9, 9, 9, 9, utc)
+    >>> json.dumps(moon, iso_datetime=True)
+    '"1999-09-09T09:09:09.000009Z"'
+    >>> json.loads('"1999-09-09T09:09:09.000009Z"', iso_datetime=True) == moon
+    True
+
+Naive datetime instances may be coerced to UTC and timezone aware converted to UTC::
+
+    >>> json.dumps(moon, iso_datetime=True, utc_datetime=True)
+    '"1999-09-09T09:09:09.000009Z"'
+    >>> json.dumps(born, iso_datetime=True, utc_datetime=True)
+    '"0001-12-25T10:20:30.123456Z"'
+    >>> from simplejson.tests.test_datetime import FixedOffset
+    >>> Rome = FixedOffset(120, "RMT")
+    >>> asiwrite = datetime.datetime(2014, 3, 15, 16, 10, 40, 0, Rome)
+    >>> json.dumps(asiwrite, iso_datetime=True)
+    '"2014-03-15T16:10:40"'
+    >>> json.dumps(asiwrite, iso_datetime=True, utc_datetime=True)
+    '"2014-03-15T14:10:40Z"'
+    >>> json.loads('"2014-03-15T14:10:40Z"', iso_datetime=True) == asiwrite
     True
 
 Also, since common JavaScript engines does not handle microseconds but only milliseconds,
@@ -143,12 +161,10 @@ the scanner recognizes also times and timestamps with only three digits after th
 
     >>> json.loads('"10:20:30.123"', iso_datetime=True)
     datetime.time(10, 20, 30, 123000)
-    >>> json.loads('"10:20:30.123Z"', iso_datetime=True)
-    datetime.time(10, 20, 30, 123000)
     >>> json.loads('"0001-12-25 10:20:30.123"', iso_datetime=True)
     datetime.datetime(1, 12, 25, 10, 20, 30, 123000)
-    >>> json.loads('"0001-12-25 10:20:30.123Z"', iso_datetime=True)
-    datetime.datetime(1, 12, 25, 10, 20, 30, 123000)
+    >>> json.loads('"0001-12-25 10:20:30.123Z"', iso_datetime=True) # doctest:+ELLIPSIS
+    datetime.datetime(1, 12, 25, 10, 20, 30, 123000, tzinfo=...utc...)
 
 .. highlight:: none
 

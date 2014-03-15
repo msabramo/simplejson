@@ -136,6 +136,7 @@ typedef struct _PyScannerObject {
     PyObject *parse_int;
     PyObject *parse_constant;
     PyObject *iso_datetime;
+    PyObject *utc;
     PyObject *memo;
 } PyScannerObject;
 
@@ -148,6 +149,7 @@ static PyMemberDef scanner_members[] = {
     {"parse_int", T_OBJECT, offsetof(PyScannerObject, parse_int), READONLY, "parse_int"},
     {"parse_constant", T_OBJECT, offsetof(PyScannerObject, parse_constant), READONLY, "parse_constant"},
     {"iso_datetime", T_OBJECT, offsetof(PyScannerObject, iso_datetime), READONLY, "iso_datetime"},
+    {"utc", T_OBJECT, offsetof(PyScannerObject, utc), READONLY, "utc"},
     {NULL}
 };
 
@@ -163,9 +165,7 @@ typedef struct _PyEncoderObject {
     PyObject *key_memo;
     PyObject *encoding;
     PyObject *Decimal;
-    PyObject *datetime;
-    PyObject *date;
-    PyObject *time;
+    PyObject *utc;
     PyObject *skipkeys_bool;
     int skipkeys;
     int fast_encode;
@@ -173,6 +173,7 @@ typedef struct _PyEncoderObject {
     int allow_or_ignore_nan;
     int use_decimal;
     int iso_datetime;
+    int utc_datetime;
     int namedtuple_as_object;
     int tuple_as_array;
     int bigint_as_string;
@@ -222,13 +223,13 @@ static PyObject *
 scan_once_str(PyScannerObject *s, PyObject *pystr, Py_ssize_t idx, Py_ssize_t *next_idx_ptr);
 static PyObject *
 scanstring_str(PyObject *pystr, Py_ssize_t end, char *encoding, int strict,
-               int iso_datetime, Py_ssize_t *next_end_ptr);
+               int iso_datetime, PyObject *utc, Py_ssize_t *next_end_ptr);
 static PyObject *
 _parse_object_str(PyScannerObject *s, PyObject *pystr, Py_ssize_t idx, Py_ssize_t *next_idx_ptr);
 #endif
 static PyObject *
 scanstring_unicode(PyObject *pystr, Py_ssize_t end, int strict,
-                   int iso_datetime, Py_ssize_t *next_end_ptr);
+                   int iso_datetime, PyObject *utc, Py_ssize_t *next_end_ptr);
 static PyObject *
 scan_once_unicode(PyScannerObject *s, PyObject *pystr, Py_ssize_t idx, Py_ssize_t *next_idx_ptr);
 static PyObject *
@@ -652,6 +653,90 @@ ascii_escape_str(PyObject *pystr)
 #endif /* PY_MAJOR_VERSION < 3 */
 
 static PyObject *
+_datetime_iso_format(PyObject *value, int quoted, int isutc) {
+    int year, month, day, hour, minute, second, microsecond;
+    char buffer[sizeof("'0001-02-03T04:05:06.000007Z'")];
+
+    year = PyDateTime_GET_YEAR(value);
+    month = PyDateTime_GET_MONTH(value);
+    day = PyDateTime_GET_DAY(value);
+    hour = PyDateTime_DATE_GET_HOUR(value);
+    minute = PyDateTime_DATE_GET_MINUTE(value);
+    second = PyDateTime_DATE_GET_SECOND(value);
+    microsecond = PyDateTime_DATE_GET_MICROSECOND(value);
+
+    if (microsecond) {
+        sprintf(buffer, "%s%04d-%02d-%02dT%02d:%02d:%02d.%06d%s%s",
+                quoted ? "\"" : "",
+                year, month, day, hour, minute, second, microsecond,
+                isutc ? "Z" : "",
+                quoted ? "\"" : "");
+    } else {
+        sprintf(buffer, "%s%04d-%02d-%02dT%02d:%02d:%02d%s%s",
+                quoted ? "\"" : "",
+                year, month, day, hour, minute, second,
+                isutc ? "Z" : "",
+                quoted ? "\"" : "");
+    }
+
+#if PY_MAJOR_VERSION >= 3
+    return _PyUnicode_FromASCII(buffer, strlen(buffer));
+#else
+    return PyString_FromStringAndSize(buffer, strlen(buffer));
+#endif
+}
+
+static PyObject *
+_date_iso_format(PyObject *value, int quoted) {
+    int year, month, day;
+    char buffer[sizeof("'0001-02-03'")];
+
+    year = PyDateTime_GET_YEAR(value);
+    month = PyDateTime_GET_MONTH(value);
+    day = PyDateTime_GET_DAY(value);
+
+    sprintf(buffer, "%s%04d-%02d-%02d%s",
+            quoted ? "\"" : "",
+            year, month, day,
+            quoted ? "\"" : "");
+
+#if PY_MAJOR_VERSION >= 3
+    return _PyUnicode_FromASCII(buffer, strlen(buffer));
+#else
+    return PyString_FromStringAndSize(buffer, strlen(buffer));
+#endif
+}
+
+static PyObject *
+_time_iso_format(PyObject *value, int quoted) {
+    int hour, minute, second, microsecond;
+    char buffer[sizeof("'01:02:03.000004'")];
+
+    hour = PyDateTime_TIME_GET_HOUR(value);
+    minute = PyDateTime_TIME_GET_MINUTE(value);
+    second = PyDateTime_TIME_GET_SECOND(value);
+    microsecond = PyDateTime_TIME_GET_MICROSECOND(value);
+
+    if (microsecond) {
+        sprintf(buffer, "%s%02d:%02d:%02d.%06d%s",
+                quoted ? "\"" : "",
+                hour, minute, second, microsecond,
+                quoted ? "\"" : "");
+    } else {
+        sprintf(buffer, "%s%02d:%02d:%02d%s",
+                quoted ? "\"" : "",
+                hour, minute, second,
+                quoted ? "\"" : "");
+    }
+
+#if PY_MAJOR_VERSION >= 3
+    return _PyUnicode_FromASCII(buffer, strlen(buffer));
+#else
+    return PyString_FromStringAndSize(buffer, strlen(buffer));
+#endif
+}
+
+static PyObject *
 encoder_stringify_key(PyEncoderObject *s, PyObject *key)
 {
     if (PyUnicode_Check(key)) {
@@ -684,33 +769,40 @@ encoder_stringify_key(PyEncoderObject *s, PyObject *key)
     else if (s->use_decimal && PyObject_TypeCheck(key, (PyTypeObject *)s->Decimal)) {
         return PyObject_Str(key);
     }
-    else if (s->iso_datetime && (
-                 PyObject_TypeCheck(key, (PyTypeObject *)s->datetime) ||
-                 PyObject_TypeCheck(key, (PyTypeObject *)s->time))) {
-        PyObject *utcofs = PyObject_CallMethod(key, "utcoffset", NULL);
-        PyObject *iso, *zulu;
-        if (utcofs == NULL) {
+    else if (s->iso_datetime && PyDateTime_Check(key)) {
+        PyObject *utcoffset = PyObject_CallMethod(key, "utcoffset", NULL);
+
+        if (utcoffset == NULL) {
             return NULL;
-        } else if (utcofs != Py_None) {
-            Py_DECREF(utcofs);
-            PyErr_SetString(PyExc_TypeError, "Only naive times are supported");
-            return NULL;
+        } else {
+            int isutc = utcoffset != Py_None && !PyObject_IsTrue(utcoffset);
+
+            Py_DECREF(utcoffset);
+
+            if (s->utc_datetime || isutc) {
+                if (utcoffset != Py_None && !isutc) {
+                    PyObject *asutc = PyObject_CallMethod(key, "astimezone", "O", s->utc);
+                    PyObject *res;
+
+                    if (asutc == NULL) {
+                        return NULL;
+                    }
+                    res = _datetime_iso_format(asutc, 0, 1);
+                    Py_DECREF(asutc);
+                    return res;
+                } else {
+                    return _datetime_iso_format(key, 0, 1);
+                }
+            } else {
+                return _datetime_iso_format(key, 0, 0);
+            }
         }
-        Py_DECREF(utcofs);
-        iso = PyObject_CallMethod(key, "isoformat", NULL);
-        if (iso == NULL) {
-            return NULL;
-        }
-#if PY_MAJOR_VERSION >= 3
-        zulu = PyUnicode_FromFormat("%UZ", iso);
-#else
-        zulu = PyString_FromFormat("%sZ", PyString_AsString(iso));
-#endif
-        Py_DECREF(iso);
-        return zulu;
     }
-    else if (s->iso_datetime && PyObject_TypeCheck(key, (PyTypeObject *)s->date)) {
-        return PyObject_CallMethod(key, "isoformat", NULL);
+    else if (s->iso_datetime && PyTime_Check(key)) {
+        return _time_iso_format(key, 0);
+    }
+    else if (s->iso_datetime && PyDate_Check(key)) {
+        return _date_iso_format(key, 0);
     }
     else if (s->skipkeys) {
         Py_INCREF(Py_None);
@@ -919,138 +1011,156 @@ _build_rval_index_tuple(PyObject *rval, Py_ssize_t idx)
         Py_CLEAR(chunk); \
     }
 
-#define _IS_DATETIME                                                    \
-int res = 0;                                                            \
-switch(len) {                                                           \
-    case 8:                     /* time: "20:02:20" */                  \
-    case 9:                     /* time: "20:02:20Z" */                 \
-    case 12:                    /* time: "20:02:20.123" */              \
-    case 13:                    /* time: "20:02:20.123Z" */             \
-    case 15:                    /* time: "20:02:20.123456" */           \
-    case 16:                    /* time: "20:02:20.123456Z" */          \
-        res = (_CHARV(2) == ':' && _CHARV(5) == ':' &&                  \
-               _ISDIGIT(0) && _ISDIGIT(1) &&                            \
-               _ISDIGIT(3) && _ISDIGIT(4) &&                            \
-               _ISDIGIT(6) && _ISDIGIT(7));                             \
-        if (res) {                                                      \
-            if (len == 9 || len == 13 || len == 16) {                   \
-                res = _CHARV(len-1) == 'Z';                             \
-                len--;                                                  \
-            }                                                           \
-            if (res && len == 12) {                                     \
-                res = (_CHARV(8) == '.' &&                              \
-                       _ISDIGIT(9) && _ISDIGIT(10) && _ISDIGIT(11));    \
-            } else if (res && len == 15) {                              \
-                res = (_CHARV(8) == '.' &&                              \
-                       _ISDIGIT(9) && _ISDIGIT(10) && _ISDIGIT(11) &&   \
-                       _ISDIGIT(12) && _ISDIGIT(13) && _ISDIGIT(14));   \
-            }                                                           \
-        }                                                               \
-        break;                                                          \
-                                                                        \
-    case 10:                    /* date: "1999-02-03" */                \
-    case 19:                    /* datetime: "1999-02-03T10:20:30" */   \
-    case 20:                    /* datetime: "1999-02-03T10:20:30Z" */  \
-    case 23:                    /* datetime: "1999-02-03T10:20:30.123" */ \
-    case 24:                    /* datetime: "1999-02-03T10:20:30.123Z" */ \
-    case 26:                    /* datetime: "1999-02-03T10:20:30.123456" */ \
-    case 27:                    /* datetime: "1999-02-03T10:20:30.123456Z" */ \
-        res = (_CHARV(4) == '-' && _CHARV(7) == '-' &&                  \
-               _ISDIGIT(0) && _ISDIGIT(1) && _ISDIGIT(2) && _ISDIGIT(3) && \
-               _ISDIGIT(5) && _ISDIGIT(6) &&                            \
-               _ISDIGIT(8) && _ISDIGIT(9));                             \
-        if (res && len > 10) {                                          \
-            if (_CHARV(10) == ' ' || _CHARV(10) == 'T') {               \
-                res = (_CHARV(13) == ':' && _CHARV(16) == ':' &&        \
-                       _ISDIGIT(11) && _ISDIGIT(12) &&                  \
-                       _ISDIGIT(14) && _ISDIGIT(15) &&                  \
-                       _ISDIGIT(17) && _ISDIGIT(18));                   \
-                if (res) {                                              \
-                    if (len == 20 || len == 24 || len == 27) {          \
-                        res = _CHARV(len-1) == 'Z';                     \
-                        len--;                                          \
-                    }                                                   \
-                    if (res && len == 23) {                             \
-                        res = (_CHARV(19) == '.' &&                     \
-                               _ISDIGIT(20) && _ISDIGIT(21) && _ISDIGIT(22)); \
-                    } else if (res && len == 26) {                      \
-                        res = (_CHARV(19) == '.' &&                     \
-                               _ISDIGIT(20) && _ISDIGIT(21) && _ISDIGIT(22) && \
-                               _ISDIGIT(23) && _ISDIGIT(24) && _ISDIGIT(25)); \
-                    }                                                   \
-                }                                                       \
-            } else {                                                    \
-                res = 0;                                                \
-            }                                                           \
-        }                                                               \
-        break;                                                          \
-}                                                                       \
+#define _IS_DATETIME							\
+int res = 0;								\
+switch(len) {								\
+    case 8:                     /* 20:02:20 */				\
+    case 12:                    /* 20:02:20.123 */			\
+    case 15:                    /* 20:02:20.123456 */			\
+        res = (_CHARV(2) == ':' && _CHARV(5) == ':' &&			\
+               _ISDIGIT(0) && _ISDIGIT(1) &&				\
+               _ISDIGIT(3) && _ISDIGIT(4) &&				\
+               _ISDIGIT(6) && _ISDIGIT(7));				\
+        if (res) {							\
+            if (res && len == 12) {					\
+                res = (_CHARV(8) == '.' &&				\
+                       _ISDIGIT(9) && _ISDIGIT(10) && _ISDIGIT(11));	\
+            } else if (res && len == 15) {				\
+                res = (_CHARV(8) == '.' &&				\
+                       _ISDIGIT(9) && _ISDIGIT(10) && _ISDIGIT(11) &&	\
+                       _ISDIGIT(12) && _ISDIGIT(13) && _ISDIGIT(14));	\
+            }								\
+        }								\
+        break;								\
+									\
+    case 10:                    /* 1999-02-03 */			\
+    case 19:                    /* 1999-02-03T10:20:30 */		\
+    case 20:                    /* 1999-02-03T10:20:30Z */		\
+    case 23:                    /* 1999-02-03T10:20:30.123 */		\
+    case 24:                    /* 1999-02-03T10:20:30.123Z */		\
+    case 26:                    /* 1999-02-03T10:20:30.123456 */	\
+    case 27:                    /* 1999-02-03T10:20:30.123456Z */	\
+        res = (_CHARV(4) == '-' && _CHARV(7) == '-' &&			\
+               _ISDIGIT(0) && _ISDIGIT(1) &&				\
+	       _ISDIGIT(2) && _ISDIGIT(3) &&				\
+               _ISDIGIT(5) && _ISDIGIT(6) &&				\
+               _ISDIGIT(8) && _ISDIGIT(9));				\
+        if (res && len > 10) {						\
+            if (_CHARV(10) == ' ' || _CHARV(10) == 'T') {		\
+                res = (_CHARV(13) == ':' && _CHARV(16) == ':' &&	\
+                       _ISDIGIT(11) && _ISDIGIT(12) &&			\
+                       _ISDIGIT(14) && _ISDIGIT(15) &&			\
+                       _ISDIGIT(17) && _ISDIGIT(18));			\
+                if (res) {						\
+                    if (len == 20 || len == 24 || len == 27) {		\
+                        res = _CHARV(len-1) == 'Z';			\
+                        len--;						\
+                    }							\
+                    if (res && len == 23) {				\
+                        res = (_CHARV(19) == '.' &&			\
+                               _ISDIGIT(20) &&				\
+			       _ISDIGIT(21) &&				\
+			       _ISDIGIT(22));				\
+                    } else if (res && len == 26) {			\
+                        res = (_CHARV(19) == '.' &&			\
+                               _ISDIGIT(20) &&				\
+			       _ISDIGIT(21) &&				\
+			       _ISDIGIT(22) &&				\
+                               _ISDIGIT(23) &&				\
+			       _ISDIGIT(24) &&				\
+			       _ISDIGIT(25));				\
+                    }							\
+                }							\
+            } else {							\
+                res = 0;						\
+            }								\
+        }								\
+        break;								\
+}									\
 return res
 
 
-#define _SCAN_DATETIME                                                  \
-PyObject *res;                                                          \
-int hours, mins, secs, usecs;                                           \
-int year, month, day;                                                   \
-                                                                        \
-PyDateTime_IMPORT;                                                      \
-                                                                        \
-switch(len) {                                                           \
-    case 8:                     /* time: "20:02:20" */                  \
-    case 9:                     /* time: "20:02:20Z" */                 \
-    case 12:                    /* time: "20:02:20.123" */              \
-    case 13:                    /* time: "20:02:20.123Z" */             \
-    case 15:                    /* time: "20:02:20.123456" */           \
-    case 16:                    /* time: "20:02:20.123456Z" */          \
-        hours = _DIGITV(0)*10 + _DIGITV(1);                             \
-        mins = _DIGITV(3)*10 + _DIGITV(4);                              \
-        secs = _DIGITV(6)*10 + _DIGITV(7);                              \
-        if (len == 8 || len == 9) {                                     \
-            usecs = 0;                                                  \
-        } else {                                                        \
-            usecs = _DIGITV(9)*100000 + _DIGITV(10) * 10000 + _DIGITV(11) * 1000; \
-            if (len == 15 || len == 16) {                               \
-                usecs += _DIGITV(12)*100 + _DIGITV(13) * 10 + _DIGITV(14); \
-            }                                                           \
-        }                                                               \
-        res = PyTime_FromTime(hours, mins, secs, usecs);                \
-        break;                                                          \
-                                                                        \
-    case 10:                    /* date: "1999-02-03" */                \
-        year = _DIGITV(0)*1000 + _DIGITV(1)*100 + _DIGITV(2)*10 + _DIGITV(3); \
-        month = _DIGITV(5)*10 + _DIGITV(6);                             \
-        day = _DIGITV(8)*10 + _DIGITV(9);                               \
-        res = PyDate_FromDate(year, month, day);                        \
-        break;                                                          \
-                                                                        \
-    case 19:                    /* datetime: "1999-02-03T10:20:30" */   \
-    case 20:                    /* datetime: "1999-02-03T10:20:30Z" */  \
-    case 23:                    /* datetime: "1999-02-03T10:20:30.123" */ \
-    case 24:                    /* datetime: "1999-02-03T10:20:30.123Z" */ \
-    case 26:                    /* datetime: "1999-02-03T10:20:30.123456" */ \
-    case 27:                    /* datetime: "1999-02-03T10:20:30.123456Z" */ \
-        year = _DIGITV(0)*1000 + _DIGITV(1)*100 + _DIGITV(2)*10 + _DIGITV(3); \
-        month = _DIGITV(5)*10 + _DIGITV(6);                             \
-        day = _DIGITV(8)*10 + _DIGITV(9);                               \
-        hours = _DIGITV(11)*10 + _DIGITV(12);                           \
-        mins = _DIGITV(14)*10 + _DIGITV(15);                            \
-        secs = _DIGITV(17)*10 + _DIGITV(18);                            \
-        if (len == 19 || len == 20) {                                   \
-            usecs = 0;                                                  \
-        } else {                                                        \
-            usecs = _DIGITV(20)*100000 + _DIGITV(21) * 10000 + _DIGITV(22) * 1000; \
-            if (len == 26 || len == 27) {                               \
-                usecs += _DIGITV(23)*100 + _DIGITV(24) * 10 + _DIGITV(25); \
-            }                                                           \
-        }                                                               \
-        res = PyDateTime_FromDateAndTime(year, month, day, hours, mins, secs, usecs); \
-        break;                                                          \
-                                                                        \
-    default:                                                            \
-        PyErr_SetString(PyExc_ValueError, "not a datetime, nor a date, nor a time"); \
-        res = NULL;                                                     \
-        break;                                                          \
-}                                                                       \
+#define _SCAN_DATETIME							\
+PyObject *res;								\
+int hours, mins, secs, usecs;						\
+int year, month, day;							\
+									\
+switch(len) {								\
+    case 8:                     /* 20:02:20 */				\
+    case 12:                    /* 20:02:20.123 */			\
+    case 15:                    /* 20:02:20.123456 */			\
+        hours = _DIGITV(0)*10 + _DIGITV(1);				\
+        mins = _DIGITV(3)*10 + _DIGITV(4);				\
+        secs = _DIGITV(6)*10 + _DIGITV(7);				\
+        if (len == 8) {							\
+            usecs = 0;							\
+        } else {							\
+            usecs = _DIGITV(9)*100000					\
+		+ _DIGITV(10) * 10000					\
+		+ _DIGITV(11) * 1000;					\
+            if (len == 15 || len == 16) {				\
+                usecs += _DIGITV(12)*100				\
+		    + _DIGITV(13) * 10					\
+		    + _DIGITV(14);					\
+            }								\
+        }								\
+        res = PyTime_FromTime(hours, mins, secs, usecs);		\
+        break;								\
+									\
+    case 10:                    /* 1999-02-03 */			\
+        year = _DIGITV(0)*1000						\
+	    + _DIGITV(1)*100						\
+	    + _DIGITV(2)*10						\
+	    + _DIGITV(3);						\
+        month = _DIGITV(5)*10 + _DIGITV(6);				\
+        day = _DIGITV(8)*10 + _DIGITV(9);				\
+        res = PyDate_FromDate(year, month, day);			\
+        break;								\
+									\
+    case 19:                    /* 1999-02-03T10:20:30 */		\
+    case 20:                    /* 1999-02-03T10:20:30Z */		\
+    case 23:                    /* 1999-02-03T10:20:30.123 */		\
+    case 24:                    /* 1999-02-03T10:20:30.123Z */		\
+    case 26:                    /* 1999-02-03T10:20:30.123456 */	\
+    case 27:                    /* 1999-02-03T10:20:30.123456Z */	\
+        year = _DIGITV(0)*1000						\
+	    + _DIGITV(1)*100						\
+	    + _DIGITV(2)*10						\
+	    + _DIGITV(3);						\
+        month = _DIGITV(5)*10 + _DIGITV(6);				\
+        day = _DIGITV(8)*10 + _DIGITV(9);				\
+        hours = _DIGITV(11)*10 + _DIGITV(12);				\
+        mins = _DIGITV(14)*10 + _DIGITV(15);				\
+        secs = _DIGITV(17)*10 + _DIGITV(18);				\
+        if (len == 19 || len == 20) {					\
+            usecs = 0;							\
+        } else {							\
+            usecs = _DIGITV(20)*100000					\
+		+ _DIGITV(21)*10000					\
+		+ _DIGITV(22)*1000;					\
+            if (len == 26 || len == 27) {				\
+                usecs += _DIGITV(23)*100				\
+		    + _DIGITV(24)*10					\
+		    + _DIGITV(25);					\
+            }								\
+        }								\
+	if (len == 20 || len == 24 || len == 27) {			\
+	    res = PyDateTimeAPI->DateTime_FromDateAndTime(		\
+		year, month, day, hours, mins, secs, usecs, utc,	\
+		PyDateTimeAPI->DateTimeType);				\
+	}								\
+	else {								\
+	    res = PyDateTime_FromDateAndTime(				\
+		year, month, day, hours, mins, secs, usecs);		\
+	}								\
+        break;								\
+									\
+    default:								\
+        PyErr_SetString(PyExc_ValueError,				\
+			"not a datetime, nor a date, nor a time");	\
+        res = NULL;							\
+        break;								\
+}									\
 return res
 
 
@@ -1067,7 +1177,7 @@ _is_datetime_str(const char *p, Py_ssize_t len)
 }
 
 static PyObject *
-_scan_datetime_str(const char *p, Py_ssize_t len)
+_scan_datetime_str(const char *p, Py_ssize_t len, PyObject *utc)
 {
     _SCAN_DATETIME;
 }
@@ -1078,7 +1188,7 @@ _scan_datetime_str(const char *p, Py_ssize_t len)
 
 static PyObject *
 scanstring_str(PyObject *pystr, Py_ssize_t end, char *encoding, int strict,
-               int iso_datetime, Py_ssize_t *next_end_ptr)
+               int iso_datetime, PyObject *utc, Py_ssize_t *next_end_ptr)
 {
     /* Read the JSON string from PyString pystr.
     end is the index of the first character after the quote.
@@ -1289,7 +1399,7 @@ bail:
     return NULL;
 datetime_or_date_or_time:
     *next_end_ptr = next + 1;
-    return _scan_datetime_str(&buf[end], next - end);
+    return _scan_datetime_str(&buf[end], next - end, utc);
 }
 #endif /* PY_MAJOR_VERSION < 3 */
 
@@ -1304,7 +1414,7 @@ _is_datetime_unicode(int kind, const void *p, Py_ssize_t len)
 }
 
 static PyObject *
-_scan_datetime_unicode(int kind, const void *p, Py_ssize_t len)
+_scan_datetime_unicode(int kind, const void *p, Py_ssize_t len, PyObject *utc)
 {
     _SCAN_DATETIME;
 }
@@ -1329,7 +1439,7 @@ _scan_datetime_unicode(int kind, const void *p, Py_ssize_t len)
 
 static PyObject *
 scanstring_unicode(PyObject *pystr, Py_ssize_t end, int strict,
-                   int iso_datetime, Py_ssize_t *next_end_ptr)
+                   int iso_datetime, PyObject *utc, Py_ssize_t *next_end_ptr)
 {
     /* Read the JSON string from PyUnicode pystr.
     end is the index of the first character after the quote.
@@ -1521,9 +1631,9 @@ bail:
 datetime_or_date_or_time:
     *next_end_ptr = next + 1;
 #if PY_MAJOR_VERSION < 3
-    return _scan_datetime_unicode(kind, &((const Py_UNICODE *)buf)[end], next - end);
+    return _scan_datetime_unicode(kind, &((const Py_UNICODE *)buf)[end], next - end, utc);
 #else
-    return _scan_datetime_unicode(kind, _UNICODE_OFFSET(kind, buf, end), next - end);
+    return _scan_datetime_unicode(kind, _UNICODE_OFFSET(kind, buf, end), next - end, utc);
 #endif
 }
 
@@ -1556,21 +1666,22 @@ py_scanstring(PyObject* self UNUSED, PyObject *args)
     char *encoding = NULL;
     int strict = 1;
     int iso_datetime = 0;
-    if (!PyArg_ParseTuple(args, "OO&|zii:scanstring", &pystr, _convertPyInt_AsSsize_t, &end,
-                          &encoding, &strict, &iso_datetime)) {
+    PyObject *utc = NULL;
+    if (!PyArg_ParseTuple(args, "OO&|ziiO:scanstring", &pystr, _convertPyInt_AsSsize_t, &end,
+                          &encoding, &strict, &iso_datetime, &utc)) {
         return NULL;
     }
     if (encoding == NULL) {
         encoding = DEFAULT_ENCODING;
     }
     if (PyUnicode_Check(pystr)) {
-        rval = scanstring_unicode(pystr, end, strict, iso_datetime, &next_end);
+        rval = scanstring_unicode(pystr, end, strict, iso_datetime, utc, &next_end);
     }
 #if PY_MAJOR_VERSION < 3
     /* Using a bytes input is unsupported for scanning in Python 3.
        It is coerced to str in the decoder before it gets here. */
     else if (PyString_Check(pystr)) {
-        rval = scanstring_str(pystr, end, encoding, strict, iso_datetime, &next_end);
+        rval = scanstring_str(pystr, end, encoding, strict, iso_datetime, utc, &next_end);
     }
 #endif
     else {
@@ -1673,6 +1784,7 @@ _parse_object_str(PyScannerObject *s, PyObject *pystr, Py_ssize_t idx, Py_ssize_
     char *encoding = JSON_ASCII_AS_STRING(s->encoding);
     int strict = PyObject_IsTrue(s->strict);
     int iso_datetime = PyObject_IsTrue(s->iso_datetime);
+    PyObject *utc = s->utc;
     int has_pairs_hook = (s->pairs_hook != Py_None);
     int did_parse = 0;
     Py_ssize_t next_idx;
@@ -1702,7 +1814,7 @@ _parse_object_str(PyScannerObject *s, PyObject *pystr, Py_ssize_t idx, Py_ssize_
                 raise_errmsg(ERR_OBJECT_PROPERTY, pystr, idx);
                 goto bail;
             }
-            key = scanstring_str(pystr, idx + 1, encoding, strict, iso_datetime, &next_idx);
+            key = scanstring_str(pystr, idx + 1, encoding, strict, iso_datetime, utc, &next_idx);
             if (key == NULL)
                 goto bail;
             memokey = PyDict_GetItem(s->memo, key);
@@ -1835,6 +1947,7 @@ _parse_object_unicode(PyScannerObject *s, PyObject *pystr, Py_ssize_t idx, Py_ss
     PyObject *val = NULL;
     int strict = PyObject_IsTrue(s->strict);
     int iso_datetime = PyObject_IsTrue(s->iso_datetime);
+    PyObject *utc = s->utc;
     int has_pairs_hook = (s->pairs_hook != Py_None);
     int did_parse = 0;
     Py_ssize_t next_idx;
@@ -1865,7 +1978,7 @@ _parse_object_unicode(PyScannerObject *s, PyObject *pystr, Py_ssize_t idx, Py_ss
                 raise_errmsg(ERR_OBJECT_PROPERTY, pystr, idx);
                 goto bail;
             }
-            key = scanstring_unicode(pystr, idx + 1, strict, iso_datetime, &next_idx);
+            key = scanstring_unicode(pystr, idx + 1, strict, iso_datetime, utc, &next_idx);
             if (key == NULL)
                 goto bail;
             memokey = PyDict_GetItem(s->memo, key);
@@ -2408,10 +2521,11 @@ scan_once_str(PyScannerObject *s, PyObject *pystr, Py_ssize_t idx, Py_ssize_t *n
         case '"':
             /* string */
             rval = scanstring_str(pystr, idx + 1,
-                JSON_ASCII_AS_STRING(s->encoding),
-                PyObject_IsTrue(s->strict),
-                PyObject_IsTrue(s->iso_datetime),
-                next_idx_ptr);
+				  JSON_ASCII_AS_STRING(s->encoding),
+				  PyObject_IsTrue(s->strict),
+				  PyObject_IsTrue(s->iso_datetime),
+				  s->utc,
+				  next_idx_ptr);
             break;
         case '{':
             /* object */
@@ -2539,9 +2653,10 @@ scan_once_unicode(PyScannerObject *s, PyObject *pystr, Py_ssize_t idx, Py_ssize_
         case '"':
             /* string */
             rval = scanstring_unicode(pystr, idx + 1,
-                PyObject_IsTrue(s->strict),
-                PyObject_IsTrue(s->iso_datetime),
-                next_idx_ptr);
+				      PyObject_IsTrue(s->strict),
+				      PyObject_IsTrue(s->iso_datetime),
+				      s->utc,
+				      next_idx_ptr);
             break;
         case '{':
             /* object */
@@ -2697,6 +2812,7 @@ scanner_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
         s->parse_int = NULL;
         s->parse_constant = NULL;
         s->iso_datetime = NULL;
+	s->utc = NULL;
     }
     return (PyObject *)s;
 }
@@ -2770,6 +2886,9 @@ scanner_init(PyObject *self, PyObject *args, PyObject *kwds)
     s->iso_datetime = PyObject_GetAttrString(ctx, "iso_datetime");
     if (s->iso_datetime == NULL)
         goto bail;
+    s->utc = PyObject_GetAttrString(ctx, "utc");
+    if (s->utc == NULL)
+        goto bail;
 
     return 0;
 
@@ -2782,6 +2901,7 @@ bail:
     Py_CLEAR(s->parse_int);
     Py_CLEAR(s->parse_constant);
     Py_CLEAR(s->iso_datetime);
+    Py_CLEAR(s->utc);
     return -1;
 }
 
@@ -2848,9 +2968,7 @@ encoder_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
         s->item_sort_key = NULL;
         s->item_sort_kw = NULL;
         s->Decimal = NULL;
-        s->datetime = NULL;
-        s->date = NULL;
-        s->time = NULL;
+        s->utc = NULL;
     }
     return (PyObject *)s;
 }
@@ -2869,19 +2987,18 @@ encoder_init(PyObject *self, PyObject *args, PyObject *kwds)
     PyEncoderObject *s;
     PyObject *markers, *defaultfn, *encoder, *indent, *key_separator;
     PyObject *item_separator, *sort_keys, *skipkeys, *allow_nan, *key_memo;
-    PyObject *use_decimal, *iso_datetime, *namedtuple_as_object, *tuple_as_array;
+    PyObject *use_decimal, *iso_datetime, *utc_datetime, *namedtuple_as_object, *tuple_as_array;
     PyObject *bigint_as_string, *item_sort_key, *encoding, *for_json;
-    PyObject *ignore_nan, *Decimal, *datetime, *date, *time;
+    PyObject *ignore_nan, *Decimal, *utc;
 
     assert(PyEncoder_Check(self));
     s = (PyEncoderObject *)self;
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "OOOOOOOOOOOOOOOOOOOOOOO:make_encoder", kwlist,
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "OOOOOOOOOOOOOOOOOOOOOO:make_encoder", kwlist,
         &markers, &defaultfn, &encoder, &indent, &key_separator, &item_separator,
-        &sort_keys, &skipkeys, &allow_nan, &key_memo, &use_decimal, &iso_datetime,
+        &sort_keys, &skipkeys, &allow_nan, &key_memo, &use_decimal, &iso_datetime, &utc_datetime,
         &namedtuple_as_object, &tuple_as_array, &bigint_as_string,
-        &item_sort_key, &encoding, &for_json, &ignore_nan, &Decimal,
-        &datetime, &date, &time))
+        &item_sort_key, &encoding, &for_json, &ignore_nan, &Decimal, &utc))
         return -1;
 
     s->markers = markers;
@@ -2903,6 +3020,7 @@ encoder_init(PyObject *self, PyObject *args, PyObject *kwds)
         (PyObject_IsTrue(allow_nan) ? JSON_ALLOW_NAN : 0));
     s->use_decimal = PyObject_IsTrue(use_decimal);
     s->iso_datetime = PyObject_IsTrue(iso_datetime);
+    s->utc_datetime = PyObject_IsTrue(utc_datetime);
     s->namedtuple_as_object = PyObject_IsTrue(namedtuple_as_object);
     s->tuple_as_array = PyObject_IsTrue(tuple_as_array);
     s->bigint_as_string = PyObject_IsTrue(bigint_as_string);
@@ -2938,9 +3056,7 @@ encoder_init(PyObject *self, PyObject *args, PyObject *kwds)
     s->item_sort_key = item_sort_key;
     s->Decimal = Decimal;
     s->for_json = PyObject_IsTrue(for_json);
-    s->datetime = datetime;
-    s->date = date;
-    s->time = time;
+    s->utc = utc;
 
     Py_INCREF(s->markers);
     Py_INCREF(s->defaultfn);
@@ -2953,9 +3069,7 @@ encoder_init(PyObject *self, PyObject *args, PyObject *kwds)
     Py_INCREF(s->sort_keys);
     Py_INCREF(s->item_sort_key);
     Py_INCREF(s->Decimal);
-    Py_INCREF(s->datetime);
-    Py_INCREF(s->date);
-    Py_INCREF(s->time);
+    Py_INCREF(s->utc);
     return 0;
 }
 
@@ -3150,47 +3264,45 @@ encoder_listencode_obj(PyEncoderObject *s, JSON_Accu *rval, PyObject *obj, Py_ss
             if (encoded != NULL)
                 rv = _steal_accumulate(rval, encoded);
         }
-        else if (s->iso_datetime && (
-                 PyObject_TypeCheck(obj, (PyTypeObject *)s->datetime) ||
-                 PyObject_TypeCheck(obj, (PyTypeObject *)s->time))) {
-            PyObject *encoded, *quoted = NULL;
-            if (PyObject_TypeCheck(obj, (PyTypeObject *)s->datetime) ||
-                PyObject_TypeCheck(obj, (PyTypeObject *)s->time)) {
-                PyObject *utcofs = PyObject_CallMethod(obj, "utcoffset", NULL);
-                if (utcofs == NULL) {
-                    return -1;
-                } else if (utcofs != Py_None) {
-                    Py_DECREF(utcofs);
-                    PyErr_SetString(PyExc_TypeError, "Only naive times are supported");
-                    return -1;
+        else if (s->iso_datetime && PyDateTime_Check(obj)) {
+            PyObject *utcoffset = PyObject_CallMethod(obj, "utcoffset", NULL);
+
+            if (utcoffset != NULL) {
+                int isutc = utcoffset != Py_None && !PyObject_IsTrue(utcoffset);
+                PyObject *encoded;
+
+                Py_DECREF(utcoffset);
+
+                if (s->utc_datetime || isutc) {
+                    if (utcoffset != Py_None && !isutc) {
+                        PyObject *asutc = PyObject_CallMethod(obj, "astimezone", "O", s->utc);
+
+                        if (asutc == NULL) {
+                            encoded = NULL;
+                        } else {
+                            encoded = _datetime_iso_format(asutc, 1, 1);
+                            Py_DECREF(asutc);
+                        }
+                    } else {
+                        encoded = _datetime_iso_format(obj, 1, 1);
+                    }
+                } else {
+                    encoded = _datetime_iso_format(obj, 1, 0);
                 }
-                Py_DECREF(utcofs);
+                if (encoded != NULL) {
+                    rv = _steal_accumulate(rval, encoded);
+                }
             }
-            encoded = PyObject_CallMethod(obj, "isoformat", NULL);
-            if (encoded != NULL) {
-#if PY_MAJOR_VERSION >= 3
-                quoted = PyUnicode_FromFormat("\"%UZ\"", encoded);
-#else
-                quoted = PyString_FromFormat("\"%sZ\"", PyString_AsString(encoded));
-#endif
-                Py_DECREF(encoded);
-            }
-            if (quoted != NULL)
-                rv = _steal_accumulate(rval, quoted);
         }
-        else if (s->iso_datetime && PyObject_TypeCheck(obj, (PyTypeObject *)s->date)) {
-            PyObject *encoded, *quoted = NULL;
-            encoded = PyObject_CallMethod(obj, "isoformat", NULL);
-            if (encoded != NULL) {
-#if PY_MAJOR_VERSION >= 3
-                quoted = PyUnicode_FromFormat("\"%U\"", encoded);
-#else
-                quoted = PyString_FromFormat("\"%s\"", PyString_AsString(encoded));
-#endif
-                Py_DECREF(encoded);
-            }
-            if (quoted != NULL)
-                rv = _steal_accumulate(rval, quoted);
+        else if (s->iso_datetime && PyTime_Check(obj)) {
+            PyObject *encoded = _time_iso_format(obj, 1);
+            if (encoded != NULL)
+                rv = _steal_accumulate(rval, encoded);
+        }
+        else if (s->iso_datetime && PyDate_Check(obj)) {
+            PyObject *encoded = _date_iso_format(obj, 1);
+            if (encoded != NULL)
+                rv = _steal_accumulate(rval, encoded);
         }
         else {
             PyObject *ident = NULL;
@@ -3497,9 +3609,7 @@ encoder_traverse(PyObject *self, visitproc visit, void *arg)
     Py_VISIT(s->item_sort_kw);
     Py_VISIT(s->item_sort_key);
     Py_VISIT(s->Decimal);
-    Py_VISIT(s->datetime);
-    Py_VISIT(s->date);
-    Py_VISIT(s->time);
+    Py_VISIT(s->utc);
     return 0;
 }
 
@@ -3523,9 +3633,7 @@ encoder_clear(PyObject *self)
     Py_CLEAR(s->item_sort_kw);
     Py_CLEAR(s->item_sort_key);
     Py_CLEAR(s->Decimal);
-    Py_CLEAR(s->datetime);
-    Py_CLEAR(s->date);
-    Py_CLEAR(s->time);
+    Py_CLEAR(s->utc);
     return 0;
 }
 
@@ -3619,10 +3727,14 @@ moduleinit(void)
 #else
     m = Py_InitModule3("_speedups", speedups_methods, module_doc);
 #endif
+
     Py_INCREF((PyObject*)&PyScannerType);
     PyModule_AddObject(m, "make_scanner", (PyObject*)&PyScannerType);
     Py_INCREF((PyObject*)&PyEncoderType);
     PyModule_AddObject(m, "make_encoder", (PyObject*)&PyEncoderType);
+
+    PyDateTime_IMPORT;
+
     return m;
 }
 

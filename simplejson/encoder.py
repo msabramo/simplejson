@@ -5,7 +5,7 @@ import re
 from operator import itemgetter
 from datetime import date, datetime, time
 from decimal import Decimal
-from .compat import u, unichr, binary_type, string_types, integer_types, PY3
+from .compat import u, unichr, binary_type, string_types, integer_types, PY3, utc
 def _import_speedups():
     try:
         from . import _speedups
@@ -86,6 +86,7 @@ def py_encode_basestring_ascii(s, _PY3=PY3):
 encode_basestring_ascii = (
     c_encode_basestring_ascii or py_encode_basestring_ascii)
 
+
 class JSONEncoder(object):
     """Extensible JSON <http://json.org> encoder for Python data structures.
 
@@ -120,8 +121,8 @@ class JSONEncoder(object):
     def __init__(self, skipkeys=False, ensure_ascii=True,
             check_circular=True, allow_nan=True, sort_keys=False,
             indent=None, separators=None, encoding='utf-8', default=None,
-            use_decimal=True, iso_datetime=False, namedtuple_as_object=True,
-            tuple_as_array=True, bigint_as_string=False,
+            use_decimal=True, iso_datetime=False, utc_datetime=False,
+            namedtuple_as_object=True, tuple_as_array=True, bigint_as_string=False,
             item_sort_key=None, for_json=False, ignore_nan=False):
         """Constructor for JSONEncoder, with sensible defaults.
 
@@ -175,6 +176,9 @@ class JSONEncoder(object):
         ``datetime.date`` and ``datetime.time`` will be supported directly by
         the encoder.
 
+        If utc_datetime is true (the default is false), timezone aware
+        datetimes are converted to UTC upon serialization.
+
         If namedtuple_as_object is true (the default), objects with
         ``_asdict()`` methods will be encoded as JSON objects.
 
@@ -207,6 +211,7 @@ class JSONEncoder(object):
         self.sort_keys = sort_keys
         self.use_decimal = use_decimal
         self.iso_datetime = iso_datetime
+        self.utc_datetime = utc_datetime
         self.namedtuple_as_object = namedtuple_as_object
         self.tuple_as_array = tuple_as_array
         self.bigint_as_string = bigint_as_string
@@ -321,7 +326,6 @@ class JSONEncoder(object):
 
             return text
 
-
         key_memo = {}
         if (_one_shot and c_make_encoder is not None
                 and self.indent is None):
@@ -329,21 +333,21 @@ class JSONEncoder(object):
                 markers, self.default, _encoder, self.indent,
                 self.key_separator, self.item_separator, self.sort_keys,
                 self.skipkeys, self.allow_nan, key_memo,
-                self.use_decimal, self.iso_datetime,
+                self.use_decimal, self.iso_datetime, self.utc_datetime,
                 self.namedtuple_as_object, self.tuple_as_array,
                 self.bigint_as_string, self.item_sort_key,
                 self.encoding, self.for_json, self.ignore_nan,
-                Decimal, datetime, date, time)
+                Decimal, utc)
         else:
             _iterencode = _make_iterencode(
                 markers, self.default, _encoder, self.indent, floatstr,
                 self.key_separator, self.item_separator, self.sort_keys,
                 self.skipkeys, _one_shot,
-                self.use_decimal, self.iso_datetime,
+                self.use_decimal, self.iso_datetime, self.utc_datetime,
                 self.namedtuple_as_object, self.tuple_as_array,
                 self.bigint_as_string, self.item_sort_key,
                 self.encoding, self.for_json,
-                Decimal=Decimal, datetime=datetime, date=date, time=time)
+                Decimal=Decimal, utc=utc)
         try:
             return _iterencode(o, 0)
         finally:
@@ -377,9 +381,10 @@ class JSONEncoderForHTML(JSONEncoder):
             yield chunk
 
 
-def _make_iterencode(markers, _default, _encoder, _indent, _floatstr,
-        _key_separator, _item_separator, _sort_keys, _skipkeys, _one_shot,
-        _use_decimal, _iso_datetime, _namedtuple_as_object, _tuple_as_array,
+def _make_iterencode(
+        markers, _default, _encoder, _indent, _floatstr, _key_separator,
+        _item_separator, _sort_keys, _skipkeys, _one_shot, _use_decimal,
+        _iso_datetime, _utc_datetime, _namedtuple_as_object, _tuple_as_array,
         _bigint_as_string, _item_sort_key, _encoding, _for_json,
         ## HACK: hand-optimized bytecode; turn globals into locals
         _PY3=PY3,
@@ -397,6 +402,7 @@ def _make_iterencode(markers, _default, _encoder, _indent, _floatstr,
         datetime=datetime,
         date=date,
         time=time,
+        utc=utc,
     ):
     if _item_sort_key and not callable(_item_sort_key):
         raise TypeError("item_sort_key must be None or callable")
@@ -445,11 +451,16 @@ def _make_iterencode(markers, _default, _encoder, _indent, _floatstr,
                 yield buf + _floatstr(value)
             elif _use_decimal and isinstance(value, Decimal):
                 yield buf + str(value)
-            elif _iso_datetime and isinstance(value, (datetime, time)):
-                if value.utcoffset() is not None:
-                    raise TypeError('Only naive times are supported')
-                yield buf + '"%sZ"' % value.isoformat()
-            elif _iso_datetime and isinstance(value, date):
+            elif _iso_datetime and isinstance(value, datetime):
+                utcoffset = value.utcoffset()
+                isutc = utcoffset is not None and not(utcoffset)
+                if _utc_datetime or isutc:
+                    if utcoffset is not None and not isutc:
+                        value = value.astimezone(utc)
+                    yield buf + '"%sZ"' % value.isoformat().split('+')[0]
+                else:
+                    yield buf + '"%s"' % value.isoformat().split('+')[0]
+            elif _iso_datetime and isinstance(value, (date, time)):
                 yield buf + '"%s"' % value.isoformat()
             else:
                 yield buf
@@ -495,11 +506,16 @@ def _make_iterencode(markers, _default, _encoder, _indent, _floatstr,
             key = str(key)
         elif _use_decimal and isinstance(key, Decimal):
             key = str(key)
-        elif _iso_datetime and isinstance(key, (datetime, time)):
-            if key.utcoffset() is not None:
-                raise TypeError('Only naive times are supported')
-            key = key.isoformat() + "Z"
-        elif _iso_datetime and isinstance(key, date):
+        elif _iso_datetime and isinstance(key, datetime):
+            utcoffset = key.utcoffset()
+            isutc = utcoffset is not None and not(utcoffset)
+            if _utc_datetime or isutc:
+                if utcoffset is not None and not isutc:
+                    key = key.astimezone(utc)
+                key = '%sZ' % key.isoformat().split('+')[0]
+            else:
+                key = '%s' % key.isoformat().split('+')[0]
+        elif _iso_datetime and isinstance(key, (date, time)):
             key = key.isoformat()
         elif _skipkeys:
             key = None
@@ -571,11 +587,16 @@ def _make_iterencode(markers, _default, _encoder, _indent, _floatstr,
                 yield _floatstr(value)
             elif _use_decimal and isinstance(value, Decimal):
                 yield str(value)
-            elif _iso_datetime and isinstance(value, (datetime, time)):
-                if value.utcoffset() is not None:
-                    raise TypeError('Only naive times are supported')
-                yield '"%sZ"' % value.isoformat()
-            elif _iso_datetime and isinstance(value, date):
+            elif _iso_datetime and isinstance(value, datetime):
+                utcoffset = value.utcoffset()
+                isutc = utcoffset is not None and not(utcoffset)
+                if _utc_datetime or isutc:
+                    if utcoffset is not None and not isutc:
+                        value = value.astimezone(utc)
+                    yield '"%sZ"' % value.isoformat().split('+')[0]
+                else:
+                    yield '"%s"' % value.isoformat().split('+')[0]
+            elif _iso_datetime and isinstance(value, (date, time)):
                 yield '"%s"' % value.isoformat()
             else:
                 for_json = _for_json and getattr(value, 'for_json', None)
@@ -642,11 +663,16 @@ def _make_iterencode(markers, _default, _encoder, _indent, _floatstr,
                         yield chunk
                 elif _use_decimal and isinstance(o, Decimal):
                     yield str(o)
-                elif _iso_datetime and isinstance(o, (datetime, time)):
-                    if o.utcoffset() is not None:
-                        raise TypeError('Only naive times are supported')
-                    yield '"%sZ"' % o.isoformat()
-                elif _iso_datetime and isinstance(o, date):
+                elif _iso_datetime and isinstance(o, datetime):
+                    utcoffset = o.utcoffset()
+                    isutc = utcoffset is not None and not(utcoffset)
+                    if _utc_datetime or isutc:
+                        if utcoffset is not None and not isutc:
+                            o = o.astimezone(utc)
+                        yield '"%sZ"' % o.isoformat().split('+')[0]
+                    else:
+                        yield '"%s"' % o.isoformat().split('+')[0]
+                elif _iso_datetime and isinstance(o, (date, time)):
                     yield '"%s"' % o.isoformat()
                 else:
                     if markers is not None:

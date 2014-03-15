@@ -4,7 +4,7 @@ from __future__ import absolute_import
 import re
 import sys
 import struct
-from .compat import fromhex, b, u, text_type, binary_type, PY3, unichr
+from .compat import fromhex, b, u, text_type, binary_type, PY3, unichr, utc
 from .scanner import make_scanner, JSONDecodeError
 
 def _import_c_scanstring():
@@ -73,8 +73,10 @@ def _datetime_or_string(string):
             if len(chunks) == 3:
                 chunks.extend(pieces[1].split(':'))
                 if len(chunks) == 6:
+                    tz = None
                     if chunks[-1].endswith('Z'):
                         chunks[-1] = chunks[-1][:-1]
+                        tz = utc
                     if '.' in chunks[-1]:
                         chunks[-1:] = chunks[-1].split('.')
                     else:
@@ -87,14 +89,12 @@ def _datetime_or_string(string):
                         except ValueError:
                             pass
                         else:
-                            return datetime(y, mo, d, h, m, s, ms)
+                            return datetime(y, mo, d, h, m, s, ms, tz)
 
     # Maybe a time
-    if l == 8 or l == 9 or l == 12 or l == 13 or l == 15 or l == 16:
+    if l == 8 or l == 12 or l == 15:
         chunks = string.split(':')
         if len(chunks) == 3:
-            if chunks[-1].endswith('Z'):
-                chunks[-1] = chunks[-1][:-1]
             if '.' in chunks[-1]:
                 chunks[-1:] = chunks[-1].split('.')
             else:
@@ -369,8 +369,8 @@ class JSONDecoder(object):
     """
 
     def __init__(self, encoding=None, object_hook=None, parse_float=None,
-            parse_int=None, parse_constant=None, strict=True,
-            object_pairs_hook=None, iso_datetime=False):
+                 parse_int=None, parse_constant=None, strict=True,
+                 object_pairs_hook=None, iso_datetime=False):
         """
         *encoding* determines the encoding used to interpret any
         :class:`str` objects decoded by this instance (``'utf-8'`` by
@@ -431,6 +431,7 @@ class JSONDecoder(object):
         self.parse_array = JSONArray
         self.parse_string = scanstring
         self.iso_datetime = iso_datetime
+        self.utc = utc
         self.memo = {}
         self.scan_once = make_scanner(self)
 

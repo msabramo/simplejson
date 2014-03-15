@@ -112,6 +112,7 @@ from decimal import Decimal
 from .scanner import JSONDecodeError
 from .decoder import JSONDecoder
 from .encoder import JSONEncoder, JSONEncoderForHTML
+
 def _import_OrderedDict():
     import collections
     try:
@@ -128,30 +129,31 @@ def _import_c_make_encoder():
     except ImportError:
         return None
 
-_default_encoder = JSONEncoder(
-    skipkeys=False,
-    ensure_ascii=True,
-    check_circular=True,
-    allow_nan=True,
-    indent=None,
-    separators=None,
-    encoding='utf-8',
-    default=None,
-    use_decimal=True,
-    namedtuple_as_object=True,
-    tuple_as_array=True,
-    bigint_as_string=False,
-    item_sort_key=None,
-    for_json=False,
-    ignore_nan=False,
-)
+_default_encoder = JSONEncoder(skipkeys=False,
+                               ensure_ascii=True,
+                               check_circular=True,
+                               allow_nan=True,
+                               indent=None,
+                               separators=None,
+                               encoding='utf-8',
+                               default=None,
+                               use_decimal=True,
+                               iso_datetime=False,
+                               utc_datetime=False,
+                               namedtuple_as_object=True,
+                               tuple_as_array=True,
+                               bigint_as_string=False,
+                               item_sort_key=None,
+                               for_json=False,
+                               ignore_nan=False)
 
 def dump(obj, fp, skipkeys=False, ensure_ascii=True, check_circular=True,
-        allow_nan=True, cls=None, indent=None, separators=None,
-        encoding='utf-8', default=None, use_decimal=True,
-        namedtuple_as_object=True, tuple_as_array=True,
-        bigint_as_string=False, sort_keys=False, item_sort_key=None,
-        for_json=False, ignore_nan=False, **kw):
+         allow_nan=True, cls=None, indent=None, separators=None,
+         encoding='utf-8', default=None, use_decimal=True,
+         iso_datetime=False, utc_datetime=False,
+         namedtuple_as_object=True, tuple_as_array=True,
+         bigint_as_string=False, sort_keys=False, item_sort_key=None,
+         for_json=False, ignore_nan=False, **kw):
     """Serialize ``obj`` as a JSON formatted stream to ``fp`` (a
     ``.write()``-supporting file-like object).
 
@@ -196,6 +198,13 @@ def dump(obj, fp, skipkeys=False, ensure_ascii=True, check_circular=True,
     If *use_decimal* is true (default: ``True``) then decimal.Decimal
     will be natively serialized to JSON with full precision.
 
+    If iso_datetime is true (default: ``False``), ``datetime.datetime``,
+    ``datetime.date`` and ``datetime.time`` will be supported directly by
+    the encoder.
+
+    If utc_datetime is true (default: ``False``), timezone aware
+    datetimes are converted to UTC upon serialization.
+
     If *namedtuple_as_object* is true (default: ``True``),
     :class:`tuple` subclasses with ``_asdict()`` methods will be encoded
     as JSON objects.
@@ -230,13 +239,14 @@ def dump(obj, fp, skipkeys=False, ensure_ascii=True, check_circular=True,
     ``.default()`` method to serialize additional types), specify it with
     the ``cls`` kwarg. NOTE: You should use *default* or *for_json* instead
     of subclassing whenever possible.
-
     """
+
     # cached encoder
     if (not skipkeys and ensure_ascii and
         check_circular and allow_nan and
         cls is None and indent is None and separators is None and
         encoding == 'utf-8' and default is None and use_decimal
+        and not iso_datetime and not utc_datetime
         and namedtuple_as_object and tuple_as_array
         and not bigint_as_string and not item_sort_key
         and not for_json and not ignore_nan and not kw):
@@ -245,17 +255,18 @@ def dump(obj, fp, skipkeys=False, ensure_ascii=True, check_circular=True,
         if cls is None:
             cls = JSONEncoder
         iterable = cls(skipkeys=skipkeys, ensure_ascii=ensure_ascii,
-            check_circular=check_circular, allow_nan=allow_nan, indent=indent,
-            separators=separators, encoding=encoding,
-            default=default, use_decimal=use_decimal,
-            namedtuple_as_object=namedtuple_as_object,
-            tuple_as_array=tuple_as_array,
-            bigint_as_string=bigint_as_string,
-            sort_keys=sort_keys,
-            item_sort_key=item_sort_key,
-            for_json=for_json,
-            ignore_nan=ignore_nan,
-            **kw).iterencode(obj)
+                       check_circular=check_circular, allow_nan=allow_nan, indent=indent,
+                       separators=separators, encoding=encoding,
+                       default=default, use_decimal=use_decimal,
+                       iso_datetime=iso_datetime, utc_datetime=utc_datetime,
+                       namedtuple_as_object=namedtuple_as_object,
+                       tuple_as_array=tuple_as_array,
+                       bigint_as_string=bigint_as_string,
+                       sort_keys=sort_keys,
+                       item_sort_key=item_sort_key,
+                       for_json=for_json,
+                       ignore_nan=ignore_nan,
+                       **kw).iterencode(obj)
     # could accelerate with writelines in some versions of Python, at
     # a debuggability cost
     for chunk in iterable:
@@ -263,11 +274,12 @@ def dump(obj, fp, skipkeys=False, ensure_ascii=True, check_circular=True,
 
 
 def dumps(obj, skipkeys=False, ensure_ascii=True, check_circular=True,
-        allow_nan=True, cls=None, indent=None, separators=None,
-        encoding='utf-8', default=None, use_decimal=True,
-        namedtuple_as_object=True, tuple_as_array=True,
-        bigint_as_string=False, sort_keys=False, item_sort_key=None,
-        for_json=False, ignore_nan=False, **kw):
+          allow_nan=True, cls=None, indent=None, separators=None,
+          encoding='utf-8', default=None, use_decimal=True,
+          iso_datetime=False, utc_datetime=False,
+          namedtuple_as_object=True, tuple_as_array=True,
+          bigint_as_string=False, sort_keys=False, item_sort_key=None,
+          for_json=False, ignore_nan=False, **kw):
     """Serialize ``obj`` to a JSON formatted ``str``.
 
     If ``skipkeys`` is false then ``dict`` keys that are not basic types
@@ -308,6 +320,11 @@ def dumps(obj, skipkeys=False, ensure_ascii=True, check_circular=True,
     If *use_decimal* is true (default: ``True``) then decimal.Decimal
     will be natively serialized to JSON with full precision.
 
+    If *iso_datetime* if specified with a true value then JSON strings containing
+    ISO formatted timestamps, dates and times will be recognized as such and decoded
+    as :class:`datetime.datetime`, :class:`datetime.date` and :class:`datetime.time`
+    respectively.
+
     If *namedtuple_as_object* is true (default: ``True``),
     :class:`tuple` subclasses with ``_asdict()`` methods will be encoded
     as JSON objects.
@@ -340,13 +357,14 @@ def dumps(obj, skipkeys=False, ensure_ascii=True, check_circular=True,
     ``.default()`` method to serialize additional types), specify it with
     the ``cls`` kwarg. NOTE: You should use *default* instead of subclassing
     whenever possible.
-
     """
+
     # cached encoder
     if (not skipkeys and ensure_ascii and
         check_circular and allow_nan and
         cls is None and indent is None and separators is None and
         encoding == 'utf-8' and default is None and use_decimal
+        and not iso_datetime and not utc_datetime
         and namedtuple_as_object and tuple_as_array
         and not bigint_as_string and not sort_keys
         and not item_sort_key and not for_json
@@ -354,19 +372,19 @@ def dumps(obj, skipkeys=False, ensure_ascii=True, check_circular=True,
         return _default_encoder.encode(obj)
     if cls is None:
         cls = JSONEncoder
-    return cls(
-        skipkeys=skipkeys, ensure_ascii=ensure_ascii,
-        check_circular=check_circular, allow_nan=allow_nan, indent=indent,
-        separators=separators, encoding=encoding, default=default,
-        use_decimal=use_decimal,
-        namedtuple_as_object=namedtuple_as_object,
-        tuple_as_array=tuple_as_array,
-        bigint_as_string=bigint_as_string,
-        sort_keys=sort_keys,
-        item_sort_key=item_sort_key,
-        for_json=for_json,
-        ignore_nan=ignore_nan,
-        **kw).encode(obj)
+    return cls(skipkeys=skipkeys, ensure_ascii=ensure_ascii,
+               check_circular=check_circular, allow_nan=allow_nan, indent=indent,
+               separators=separators, encoding=encoding, default=default,
+               use_decimal=use_decimal,
+               iso_datetime=iso_datetime, utc_datetime=utc_datetime,
+               namedtuple_as_object=namedtuple_as_object,
+               tuple_as_array=tuple_as_array,
+               bigint_as_string=bigint_as_string,
+               sort_keys=sort_keys,
+               item_sort_key=item_sort_key,
+               for_json=for_json,
+               ignore_nan=ignore_nan,
+               **kw).encode(obj)
 
 
 _default_decoder = JSONDecoder(encoding=None, object_hook=None,
@@ -374,9 +392,10 @@ _default_decoder = JSONDecoder(encoding=None, object_hook=None,
 
 
 def load(fp, encoding=None, cls=None, object_hook=None, parse_float=None,
-        parse_int=None, parse_constant=None, object_pairs_hook=None,
-        use_decimal=False, namedtuple_as_object=True, tuple_as_array=True,
-        **kw):
+         parse_int=None, parse_constant=None, object_pairs_hook=None,
+         use_decimal=False, iso_datetime=False,
+         namedtuple_as_object=True, tuple_as_array=True,
+         **kw):
     """Deserialize ``fp`` (a ``.read()``-supporting file-like object containing
     a JSON document) to a Python object.
 
@@ -419,21 +438,26 @@ def load(fp, encoding=None, cls=None, object_hook=None, parse_float=None,
     If *use_decimal* is true (default: ``False``) then it implies
     parse_float=decimal.Decimal for parity with ``dump``.
 
+    *iso_datetime* if specified with a true value will activate the
+    recognition of JSON strings containing ISO formatted timestamps, dates and
+    times that will be decoded as :class:`datetime.datetime`,
+    :class:`datetime.date` and :class:`datetime.time` respectively.
+
     To use a custom ``JSONDecoder`` subclass, specify it with the ``cls``
     kwarg. NOTE: You should use *object_hook* or *object_pairs_hook* instead
     of subclassing whenever possible.
-
     """
+
     return loads(fp.read(),
-        encoding=encoding, cls=cls, object_hook=object_hook,
-        parse_float=parse_float, parse_int=parse_int,
-        parse_constant=parse_constant, object_pairs_hook=object_pairs_hook,
-        use_decimal=use_decimal, **kw)
+                 encoding=encoding, cls=cls, object_hook=object_hook,
+                 parse_float=parse_float, parse_int=parse_int,
+                 parse_constant=parse_constant, object_pairs_hook=object_pairs_hook,
+                 use_decimal=use_decimal, iso_datetime=iso_datetime, **kw)
 
 
 def loads(s, encoding=None, cls=None, object_hook=None, parse_float=None,
-        parse_int=None, parse_constant=None, object_pairs_hook=None,
-        use_decimal=False, **kw):
+          parse_int=None, parse_constant=None, object_pairs_hook=None,
+          use_decimal=False, utc_datetime=False, **kw):
     """Deserialize ``s`` (a ``str`` or ``unicode`` instance containing a JSON
     document) to a Python object.
 
@@ -476,11 +500,16 @@ def loads(s, encoding=None, cls=None, object_hook=None, parse_float=None,
     If *use_decimal* is true (default: ``False``) then it implies
     parse_float=decimal.Decimal for parity with ``dump``.
 
+    *iso_datetime* if specified with a true value will activate the
+    recognition of JSON strings containing ISO formatted timestamps, dates and
+    times that will be decoded as :class:`datetime.datetime`,
+    :class:`datetime.date` and :class:`datetime.time` respectively.
+
     To use a custom ``JSONDecoder`` subclass, specify it with the ``cls``
     kwarg. NOTE: You should use *object_hook* or *object_pairs_hook* instead
     of subclassing whenever possible.
-
     """
+
     if (cls is None and encoding is None and object_hook is None and
             parse_int is None and parse_float is None and
             parse_constant is None and object_pairs_hook is None
@@ -509,6 +538,7 @@ def _toggle_speedups(enabled):
     from . import decoder as dec
     from . import encoder as enc
     from . import scanner as scan
+
     c_make_encoder = _import_c_make_encoder()
     if enabled:
         dec.scanstring = dec.c_scanstring or dec.py_scanstring
@@ -522,23 +552,22 @@ def _toggle_speedups(enabled):
         enc.encode_basestring_ascii = enc.py_encode_basestring_ascii
         scan.make_scanner = scan.py_make_scanner
     dec.make_scanner = scan.make_scanner
+
     global _default_decoder
-    _default_decoder = JSONDecoder(
-        encoding=None,
-        object_hook=None,
-        object_pairs_hook=None,
-    )
+    _default_decoder = JSONDecoder(encoding=None,
+                                   object_hook=None,
+                                   object_pairs_hook=None)
+
     global _default_encoder
-    _default_encoder = JSONEncoder(
-       skipkeys=False,
-       ensure_ascii=True,
-       check_circular=True,
-       allow_nan=True,
-       indent=None,
-       separators=None,
-       encoding='utf-8',
-       default=None,
-   )
+    _default_encoder = JSONEncoder(skipkeys=False,
+                                   ensure_ascii=True,
+                                   check_circular=True,
+                                   allow_nan=True,
+                                   indent=None,
+                                   separators=None,
+                                   encoding='utf-8',
+                                   default=None)
+
 
 def simple_first(kv):
     """Helper function to pass to item_sort_key to sort simple
