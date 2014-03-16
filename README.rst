@@ -6,7 +6,7 @@ nssjson_ is a fork of simplejson_ that fulfills my need of having a good perform
 encoder/decoder able to handle also Python's datetime, even if with an admittedly non-standard
 and faulty heuristic that was not considered within the scope\ [#]_ of the original product.
 
-Pratically, the difference is that, out of the box, you have::
+Practically, the difference is that, out of the box, you have::
 
     >>> import datetime
     >>> import nssjson
