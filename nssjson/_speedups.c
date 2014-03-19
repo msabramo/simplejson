@@ -1,4 +1,4 @@
-/* -*- mode: C; c-file-style: "python"; c-basic-offset: 4 -*- */
+/* -*- mode: C; c-file-style: "python"; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
 #include "Python.h"
 #include "structmember.h"
 #include "datetime.h"
@@ -1011,156 +1011,156 @@ _build_rval_index_tuple(PyObject *rval, Py_ssize_t idx)
         Py_CLEAR(chunk); \
     }
 
-#define _IS_DATETIME							\
-int res = 0;								\
-switch(len) {								\
-    case 8:                     /* 20:02:20 */				\
-    case 12:                    /* 20:02:20.123 */			\
-    case 15:                    /* 20:02:20.123456 */			\
-        res = (_CHARV(2) == ':' && _CHARV(5) == ':' &&			\
-               _ISDIGIT(0) && _ISDIGIT(1) &&				\
-               _ISDIGIT(3) && _ISDIGIT(4) &&				\
-               _ISDIGIT(6) && _ISDIGIT(7));				\
-        if (res) {							\
-            if (res && len == 12) {					\
-                res = (_CHARV(8) == '.' &&				\
-                       _ISDIGIT(9) && _ISDIGIT(10) && _ISDIGIT(11));	\
-            } else if (res && len == 15) {				\
-                res = (_CHARV(8) == '.' &&				\
-                       _ISDIGIT(9) && _ISDIGIT(10) && _ISDIGIT(11) &&	\
-                       _ISDIGIT(12) && _ISDIGIT(13) && _ISDIGIT(14));	\
-            }								\
-        }								\
-        break;								\
-									\
-    case 10:                    /* 1999-02-03 */			\
-    case 19:                    /* 1999-02-03T10:20:30 */		\
-    case 20:                    /* 1999-02-03T10:20:30Z */		\
-    case 23:                    /* 1999-02-03T10:20:30.123 */		\
-    case 24:                    /* 1999-02-03T10:20:30.123Z */		\
-    case 26:                    /* 1999-02-03T10:20:30.123456 */	\
-    case 27:                    /* 1999-02-03T10:20:30.123456Z */	\
-        res = (_CHARV(4) == '-' && _CHARV(7) == '-' &&			\
-               _ISDIGIT(0) && _ISDIGIT(1) &&				\
-	       _ISDIGIT(2) && _ISDIGIT(3) &&				\
-               _ISDIGIT(5) && _ISDIGIT(6) &&				\
-               _ISDIGIT(8) && _ISDIGIT(9));				\
-        if (res && len > 10) {						\
-            if (_CHARV(10) == ' ' || _CHARV(10) == 'T') {		\
-                res = (_CHARV(13) == ':' && _CHARV(16) == ':' &&	\
-                       _ISDIGIT(11) && _ISDIGIT(12) &&			\
-                       _ISDIGIT(14) && _ISDIGIT(15) &&			\
-                       _ISDIGIT(17) && _ISDIGIT(18));			\
-                if (res) {						\
-                    if (len == 20 || len == 24 || len == 27) {		\
-                        res = _CHARV(len-1) == 'Z';			\
-                        len--;						\
-                    }							\
-                    if (res && len == 23) {				\
-                        res = (_CHARV(19) == '.' &&			\
-                               _ISDIGIT(20) &&				\
-			       _ISDIGIT(21) &&				\
-			       _ISDIGIT(22));				\
-                    } else if (res && len == 26) {			\
-                        res = (_CHARV(19) == '.' &&			\
-                               _ISDIGIT(20) &&				\
-			       _ISDIGIT(21) &&				\
-			       _ISDIGIT(22) &&				\
-                               _ISDIGIT(23) &&				\
-			       _ISDIGIT(24) &&				\
-			       _ISDIGIT(25));				\
-                    }							\
-                }							\
-            } else {							\
-                res = 0;						\
-            }								\
-        }								\
-        break;								\
-}									\
+#define _IS_DATETIME                                                    \
+int res = 0;                                                            \
+switch(len) {                                                           \
+    case 8:                     /* 20:02:20 */                          \
+    case 12:                    /* 20:02:20.123 */                      \
+    case 15:                    /* 20:02:20.123456 */                   \
+        res = (_CHARV(2) == ':' && _CHARV(5) == ':' &&                  \
+               _ISDIGIT(0) && _ISDIGIT(1) &&                            \
+               _ISDIGIT(3) && _ISDIGIT(4) &&                            \
+               _ISDIGIT(6) && _ISDIGIT(7));                             \
+        if (res) {                                                      \
+            if (res && len == 12) {                                     \
+                res = (_CHARV(8) == '.' &&                              \
+                       _ISDIGIT(9) && _ISDIGIT(10) && _ISDIGIT(11));    \
+            } else if (res && len == 15) {                              \
+                res = (_CHARV(8) == '.' &&                              \
+                       _ISDIGIT(9) && _ISDIGIT(10) && _ISDIGIT(11) &&   \
+                       _ISDIGIT(12) && _ISDIGIT(13) && _ISDIGIT(14));   \
+            }                                                           \
+        }                                                               \
+        break;                                                          \
+                                                                        \
+    case 10:                    /* 1999-02-03 */                        \
+    case 19:                    /* 1999-02-03T10:20:30 */               \
+    case 20:                    /* 1999-02-03T10:20:30Z */              \
+    case 23:                    /* 1999-02-03T10:20:30.123 */           \
+    case 24:                    /* 1999-02-03T10:20:30.123Z */          \
+    case 26:                    /* 1999-02-03T10:20:30.123456 */        \
+    case 27:                    /* 1999-02-03T10:20:30.123456Z */       \
+        res = (_CHARV(4) == '-' && _CHARV(7) == '-' &&                  \
+               _ISDIGIT(0) && _ISDIGIT(1) &&                            \
+               _ISDIGIT(2) && _ISDIGIT(3) &&                            \
+               _ISDIGIT(5) && _ISDIGIT(6) &&                            \
+               _ISDIGIT(8) && _ISDIGIT(9));                             \
+        if (res && len > 10) {                                          \
+            if (_CHARV(10) == ' ' || _CHARV(10) == 'T') {               \
+                res = (_CHARV(13) == ':' && _CHARV(16) == ':' &&        \
+                       _ISDIGIT(11) && _ISDIGIT(12) &&                  \
+                       _ISDIGIT(14) && _ISDIGIT(15) &&                  \
+                       _ISDIGIT(17) && _ISDIGIT(18));                   \
+                if (res) {                                              \
+                    if (len == 20 || len == 24 || len == 27) {          \
+                        res = _CHARV(len-1) == 'Z';                     \
+                        len--;                                          \
+                    }                                                   \
+                    if (res && len == 23) {                             \
+                        res = (_CHARV(19) == '.' &&                     \
+                               _ISDIGIT(20) &&                          \
+                               _ISDIGIT(21) &&                          \
+                               _ISDIGIT(22));                           \
+                    } else if (res && len == 26) {                      \
+                        res = (_CHARV(19) == '.' &&                     \
+                               _ISDIGIT(20) &&                          \
+                               _ISDIGIT(21) &&                          \
+                               _ISDIGIT(22) &&                          \
+                               _ISDIGIT(23) &&                          \
+                               _ISDIGIT(24) &&                          \
+                               _ISDIGIT(25));                           \
+                    }                                                   \
+                }                                                       \
+            } else {                                                    \
+                res = 0;                                                \
+            }                                                           \
+        }                                                               \
+        break;                                                          \
+}                                                                       \
 return res
 
 
-#define _SCAN_DATETIME							\
-PyObject *res;								\
-int hours, mins, secs, usecs;						\
-int year, month, day;							\
-									\
-switch(len) {								\
-    case 8:                     /* 20:02:20 */				\
-    case 12:                    /* 20:02:20.123 */			\
-    case 15:                    /* 20:02:20.123456 */			\
-        hours = _DIGITV(0)*10 + _DIGITV(1);				\
-        mins = _DIGITV(3)*10 + _DIGITV(4);				\
-        secs = _DIGITV(6)*10 + _DIGITV(7);				\
-        if (len == 8) {							\
-            usecs = 0;							\
-        } else {							\
-            usecs = _DIGITV(9)*100000					\
-		+ _DIGITV(10) * 10000					\
-		+ _DIGITV(11) * 1000;					\
-            if (len == 15 || len == 16) {				\
-                usecs += _DIGITV(12)*100				\
-		    + _DIGITV(13) * 10					\
-		    + _DIGITV(14);					\
-            }								\
-        }								\
-        res = PyTime_FromTime(hours, mins, secs, usecs);		\
-        break;								\
-									\
-    case 10:                    /* 1999-02-03 */			\
-        year = _DIGITV(0)*1000						\
-	    + _DIGITV(1)*100						\
-	    + _DIGITV(2)*10						\
-	    + _DIGITV(3);						\
-        month = _DIGITV(5)*10 + _DIGITV(6);				\
-        day = _DIGITV(8)*10 + _DIGITV(9);				\
-        res = PyDate_FromDate(year, month, day);			\
-        break;								\
-									\
-    case 19:                    /* 1999-02-03T10:20:30 */		\
-    case 20:                    /* 1999-02-03T10:20:30Z */		\
-    case 23:                    /* 1999-02-03T10:20:30.123 */		\
-    case 24:                    /* 1999-02-03T10:20:30.123Z */		\
-    case 26:                    /* 1999-02-03T10:20:30.123456 */	\
-    case 27:                    /* 1999-02-03T10:20:30.123456Z */	\
-        year = _DIGITV(0)*1000						\
-	    + _DIGITV(1)*100						\
-	    + _DIGITV(2)*10						\
-	    + _DIGITV(3);						\
-        month = _DIGITV(5)*10 + _DIGITV(6);				\
-        day = _DIGITV(8)*10 + _DIGITV(9);				\
-        hours = _DIGITV(11)*10 + _DIGITV(12);				\
-        mins = _DIGITV(14)*10 + _DIGITV(15);				\
-        secs = _DIGITV(17)*10 + _DIGITV(18);				\
-        if (len == 19 || len == 20) {					\
-            usecs = 0;							\
-        } else {							\
-            usecs = _DIGITV(20)*100000					\
-		+ _DIGITV(21)*10000					\
-		+ _DIGITV(22)*1000;					\
-            if (len == 26 || len == 27) {				\
-                usecs += _DIGITV(23)*100				\
-		    + _DIGITV(24)*10					\
-		    + _DIGITV(25);					\
-            }								\
-        }								\
-	if (len == 20 || len == 24 || len == 27) {			\
-	    res = PyDateTimeAPI->DateTime_FromDateAndTime(		\
-		year, month, day, hours, mins, secs, usecs, utc,	\
-		PyDateTimeAPI->DateTimeType);				\
-	}								\
-	else {								\
-	    res = PyDateTime_FromDateAndTime(				\
-		year, month, day, hours, mins, secs, usecs);		\
-	}								\
-        break;								\
-									\
-    default:								\
-        PyErr_SetString(PyExc_ValueError,				\
-			"not a datetime, nor a date, nor a time");	\
-        res = NULL;							\
-        break;								\
-}									\
+#define _SCAN_DATETIME                                                  \
+PyObject *res;                                                          \
+int hours, mins, secs, usecs;                                           \
+int year, month, day;                                                   \
+                                                                        \
+switch(len) {                                                           \
+    case 8:                     /* 20:02:20 */                          \
+    case 12:                    /* 20:02:20.123 */                      \
+    case 15:                    /* 20:02:20.123456 */                   \
+        hours = _DIGITV(0)*10 + _DIGITV(1);                             \
+        mins = _DIGITV(3)*10 + _DIGITV(4);                              \
+        secs = _DIGITV(6)*10 + _DIGITV(7);                              \
+        if (len == 8) {                                                 \
+            usecs = 0;                                                  \
+        } else {                                                        \
+            usecs = _DIGITV(9)*100000                                   \
+                + _DIGITV(10) * 10000                                   \
+                + _DIGITV(11) * 1000;                                   \
+            if (len == 15 || len == 16) {                               \
+                usecs += _DIGITV(12)*100                                \
+                    + _DIGITV(13) * 10                                  \
+                    + _DIGITV(14);                                      \
+            }                                                           \
+        }                                                               \
+        res = PyTime_FromTime(hours, mins, secs, usecs);                \
+        break;                                                          \
+                                                                        \
+    case 10:                    /* 1999-02-03 */                        \
+        year = _DIGITV(0)*1000                                          \
+            + _DIGITV(1)*100                                            \
+            + _DIGITV(2)*10                                             \
+            + _DIGITV(3);                                               \
+        month = _DIGITV(5)*10 + _DIGITV(6);                             \
+        day = _DIGITV(8)*10 + _DIGITV(9);                               \
+        res = PyDate_FromDate(year, month, day);                        \
+        break;                                                          \
+                                                                        \
+    case 19:                    /* 1999-02-03T10:20:30 */               \
+    case 20:                    /* 1999-02-03T10:20:30Z */              \
+    case 23:                    /* 1999-02-03T10:20:30.123 */           \
+    case 24:                    /* 1999-02-03T10:20:30.123Z */          \
+    case 26:                    /* 1999-02-03T10:20:30.123456 */        \
+    case 27:                    /* 1999-02-03T10:20:30.123456Z */       \
+        year = _DIGITV(0)*1000                                          \
+            + _DIGITV(1)*100                                            \
+            + _DIGITV(2)*10                                             \
+            + _DIGITV(3);                                               \
+        month = _DIGITV(5)*10 + _DIGITV(6);                             \
+        day = _DIGITV(8)*10 + _DIGITV(9);                               \
+        hours = _DIGITV(11)*10 + _DIGITV(12);                           \
+        mins = _DIGITV(14)*10 + _DIGITV(15);                            \
+        secs = _DIGITV(17)*10 + _DIGITV(18);                            \
+        if (len == 19 || len == 20) {                                   \
+            usecs = 0;                                                  \
+        } else {                                                        \
+            usecs = _DIGITV(20)*100000                                  \
+                + _DIGITV(21)*10000                                     \
+                + _DIGITV(22)*1000;                                     \
+            if (len == 26 || len == 27) {                               \
+                usecs += _DIGITV(23)*100                                \
+                    + _DIGITV(24)*10                                    \
+                    + _DIGITV(25);                                      \
+            }                                                           \
+        }                                                               \
+        if (len == 20 || len == 24 || len == 27) {                      \
+            res = PyDateTimeAPI->DateTime_FromDateAndTime(              \
+                year, month, day, hours, mins, secs, usecs, utc,        \
+                PyDateTimeAPI->DateTimeType);                           \
+        }                                                               \
+        else {                                                          \
+            res = PyDateTime_FromDateAndTime(                           \
+                year, month, day, hours, mins, secs, usecs);            \
+        }                                                               \
+        break;                                                          \
+                                                                        \
+    default:                                                            \
+        PyErr_SetString(PyExc_ValueError,                               \
+                        "not a datetime, nor a date, nor a time");      \
+        res = NULL;                                                     \
+        break;                                                          \
+}                                                                       \
 return res
 
 
@@ -2521,11 +2521,11 @@ scan_once_str(PyScannerObject *s, PyObject *pystr, Py_ssize_t idx, Py_ssize_t *n
         case '"':
             /* string */
             rval = scanstring_str(pystr, idx + 1,
-				  JSON_ASCII_AS_STRING(s->encoding),
-				  PyObject_IsTrue(s->strict),
-				  PyObject_IsTrue(s->iso_datetime),
-				  s->utc,
-				  next_idx_ptr);
+                                  JSON_ASCII_AS_STRING(s->encoding),
+                                  PyObject_IsTrue(s->strict),
+                                  PyObject_IsTrue(s->iso_datetime),
+                                  s->utc,
+                                  next_idx_ptr);
             break;
         case '{':
             /* object */
@@ -2653,10 +2653,10 @@ scan_once_unicode(PyScannerObject *s, PyObject *pystr, Py_ssize_t idx, Py_ssize_
         case '"':
             /* string */
             rval = scanstring_unicode(pystr, idx + 1,
-				      PyObject_IsTrue(s->strict),
-				      PyObject_IsTrue(s->iso_datetime),
-				      s->utc,
-				      next_idx_ptr);
+                                      PyObject_IsTrue(s->strict),
+                                      PyObject_IsTrue(s->iso_datetime),
+                                      s->utc,
+                                      next_idx_ptr);
             break;
         case '{':
             /* object */
@@ -2812,7 +2812,7 @@ scanner_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
         s->parse_int = NULL;
         s->parse_constant = NULL;
         s->iso_datetime = NULL;
-	s->utc = NULL;
+        s->utc = NULL;
     }
     return (PyObject *)s;
 }
