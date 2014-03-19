@@ -1677,6 +1677,10 @@ py_scanstring(PyObject* self UNUSED, PyObject *args)
                           &encoding, &strict, &iso_datetime, &utc)) {
         return NULL;
     }
+    if (iso_datetime && (utc == NULL || !PyTZInfo_Check(utc))) {
+        PyErr_SetString(PyExc_ValueError, "the utc argument must be a tzinfo instance");
+        return NULL;
+    }
     if (encoding == NULL) {
         encoding = DEFAULT_ENCODING;
     }
