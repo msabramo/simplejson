@@ -14,15 +14,18 @@ from distutils.command.build_ext import build_ext
 from distutils.errors import CCompilerError, DistutilsExecError, DistutilsPlatformError
 
 IS_PYPY = hasattr(sys, 'pypy_translation_info')
-VERSION = '0.1'
 DESCRIPTION = u"Not So Simple JSON encoder/decoder"
 
 here = os.path.abspath(os.path.dirname(__file__))
 with open(os.path.join(here, 'README.rst'), encoding='utf-8') as f:
-    LONG_DESCRIPTION = f.read()
+    README = f.read()
+with open(os.path.join(here, 'CHANGES.rst'), encoding='utf-8') as f:
+    CHANGES = f.read()
+with open(os.path.join(here, 'version.txt'), encoding='utf-8') as f:
+    VERSION = f.read().strip()
 
 CLASSIFIERS = [line.strip() for line in u"""
-Development Status :: 5 - Production/Stable
+Development Status :: 3 - Alpha
 Intended Audience :: Developers
 License :: OSI Approved :: MIT License
 License :: OSI Approved :: Academic Free License (AFL)
@@ -97,10 +100,12 @@ def run_setup(with_binary):
         name="nssjson",
         version=VERSION,
         description=DESCRIPTION,
-        long_description=LONG_DESCRIPTION,
+        long_description=README + u'\n\n' + CHANGES,
         classifiers=CLASSIFIERS,
         author="Bob Ippolito",
         author_email="bob@redivi.com",
+        maintainer="Lele Gaifax",
+        maintainer_email="lele@metapensiero.it",
         url="https://github.com/lelit/nssjson",
         license="MIT License",
         packages=['nssjson', 'nssjson.tests'],
