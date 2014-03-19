@@ -1248,9 +1248,9 @@ scanstring_str(PyObject *pystr, Py_ssize_t end, char *encoding, int strict,
         /* Pick up this chunk if it's not zero length */
         if (next != end) {
             /* If we are looking at the closing quote and the string is
-               composed of a single chunk (i.e. no escaped chars), check if it
-               contains a datetime or a date or a time value: in such case
-               parse it and return the datetime.xxx instance. */
+               composed of a single ASCII chunk (i.e. no escaped chars), check
+               if it contains a datetime or a date or a time value: in such
+               case parse it and return the datetime.xxx instance. */
             if (!has_unicode && iso_datetime && c == '"' && chunks == NULL
                 && (next - end) >= 8 && (next - end) <= 27
                 && _is_datetime_str(&buf[end], next - end)) {
