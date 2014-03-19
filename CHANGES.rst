@@ -1,7 +1,7 @@
 Changes
 -------
 
-0.1 (unreleased)
+0.1 (2014-03-19)
 ~~~~~~~~~~~~~~~~
 
 * Fork of simplejson 3.3.3
