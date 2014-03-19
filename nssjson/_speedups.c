@@ -1244,12 +1244,17 @@ scanstring_str(PyObject *pystr, Py_ssize_t end, char *encoding, int strict,
         }
         /* Pick up this chunk if it's not zero length */
         if (next != end) {
-            APPEND_OLD_CHUNK
+            /* If we are looking at the closing quote and the string is
+               composed of a single chunk (i.e. no escaped chars), check if it
+               contains a datetime or a date or a time value: in such case
+               parse it and return the datetime.xxx instance. */
             if (!has_unicode && iso_datetime && c == '"' && chunks == NULL
                 && (next - end) >= 8 && (next - end) <= 27
                 && _is_datetime_str(&buf[end], next - end)) {
-                goto datetime_or_date_or_time;
+                *next_end_ptr = next + 1;
+                return _scan_datetime_str(&buf[end], next - end, utc);
             }
+            APPEND_OLD_CHUNK;
             strchunk = PyString_FromStringAndSize(&buf[end], next - end);
             if (strchunk == NULL) {
                 goto bail;
@@ -1399,9 +1404,6 @@ bail:
     Py_XDECREF(chunk);
     Py_XDECREF(chunks);
     return NULL;
-datetime_or_date_or_time:
-    *next_end_ptr = next + 1;
-    return _scan_datetime_str(&buf[end], next - end, utc);
 }
 #endif /* PY_MAJOR_VERSION < 3 */
 
@@ -1428,7 +1430,9 @@ _scan_datetime_unicode(int kind, const void *p, Py_ssize_t len, PyObject *utc)
 #undef _IS_DATETIME
 #undef _SCAN_DATETIME
 
-#if PY_MAJOR_VERSION >= 3
+#if PY_MAJOR_VERSION < 3
+#define _UNICODE_OFFSET(kind, data, index) (&((const Py_UNICODE *) data)[index])
+#else
 #define _UNICODE_OFFSET(kind, data, index)                      \
     ((kind) == PyUnicode_1BYTE_KIND ?                           \
      (const void *) ((const Py_UCS1 *)(data)+(index)) :         \
@@ -1489,18 +1493,20 @@ scanstring_unicode(PyObject *pystr, Py_ssize_t end, int strict,
         }
         /* Pick up this chunk if it's not zero length */
         if (next != end) {
-            APPEND_OLD_CHUNK
-#if PY_MAJOR_VERSION < 3
-            if (c == '"' && chunks == NULL && (next - end) >= 8 && (next - end) <= 27
-                && _is_datetime_unicode(kind, &((const Py_UNICODE *)buf)[end], next - end)) {
-                goto datetime_or_date_or_time;
-            }
-            chunk = PyUnicode_FromUnicode(&((const Py_UNICODE *)buf)[end], next - end);
-#else
-            if (c == '"' && chunks == NULL && (next - end) >= 8 && (next - end) <= 27
+            /* If we are looking at the closing quote and the string is
+               composed of a single chunk (i.e. no escaped chars), check if it
+               contains a datetime or a date or a time value: in such case
+               parse it and return the datetime.xxx instance. */
+            if (c == '"' && chunk == NULL && chunks == NULL
+                && (next - end) >= 8 && (next - end) <= 27
                 && _is_datetime_unicode(kind, _UNICODE_OFFSET(kind, buf, end), next - end)) {
-                goto datetime_or_date_or_time;
+                *next_end_ptr = next + 1;
+                return _scan_datetime_unicode(kind, _UNICODE_OFFSET(kind, buf, end), next - end, utc);
             }
+            APPEND_OLD_CHUNK;
+#if PY_MAJOR_VERSION < 3
+            chunk = PyUnicode_FromUnicode(_UNICODE_OFFSET(kind, buf, end), next - end);
+#else
             chunk = PyUnicode_Substring(pystr, end, next);
 #endif
             if (chunk == NULL) {
@@ -1630,13 +1636,6 @@ bail:
     Py_XDECREF(chunk);
     Py_XDECREF(chunks);
     return NULL;
-datetime_or_date_or_time:
-    *next_end_ptr = next + 1;
-#if PY_MAJOR_VERSION < 3
-    return _scan_datetime_unicode(kind, &((const Py_UNICODE *)buf)[end], next - end, utc);
-#else
-    return _scan_datetime_unicode(kind, _UNICODE_OFFSET(kind, buf, end), next - end, utc);
-#endif
 }
 
 #if PY_MAJOR_VERSION >= 3
