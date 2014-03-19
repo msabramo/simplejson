@@ -1500,7 +1500,7 @@ scanstring_unicode(PyObject *pystr, Py_ssize_t end, int strict,
                composed of a single chunk (i.e. no escaped chars), check if it
                contains a datetime or a date or a time value: in such case
                parse it and return the datetime.xxx instance. */
-            if (c == '"' && chunk == NULL && chunks == NULL
+            if (iso_datetime && c == '"' && chunk == NULL && chunks == NULL
                 && (next - end) >= 8 && (next - end) <= 27
                 && _is_datetime_unicode(kind, _UNICODE_OFFSET(kind, buf, end), next - end)) {
                 *next_end_ptr = next + 1;
