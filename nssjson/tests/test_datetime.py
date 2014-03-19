@@ -9,7 +9,7 @@ from datetime import (
 from unittest import TestCase
 
 import nssjson as json
-from nssjson.compat import StringIO, reload_module
+from nssjson.compat import StringIO, reload_module, utc
 
 
 class FixedOffset(tzinfo):
@@ -141,10 +141,33 @@ class TestDate(TestCase, AbstractDatetimeTestSuite):
 
 class TestTime(TestCase, AbstractDatetimeTestSuite):
     VALUES = (Time(10, 10, 0), Time(0, 0, 0),
-              Time(1, 1, 1, 1), Time(23,23,23,999999))
+              Time(1, 1, 1, 1), Time(23, 23, 23, 999999))
 
     def test_encode(self):
         self.assertEqual(json.dumps(list(self.VALUES), iso_datetime=True),
                          str(["%s" % d.isoformat() for d in self.VALUES]).replace("'", '"'))
         for d in self.VALUES:
             self.assertEqual(self.dumps(d, iso_datetime=True), '"%s"' % d.isoformat())
+
+
+class TestScanString(TestCase):
+    def test_defaults(self):
+        self.assertEqual(json.loads('"1999-01-01"'), "1999-01-01")
+        self.assertEqual(json.loads('"1999-01-01"', iso_datetime=False), "1999-01-01")
+
+    def test_scanstring(self):
+        ss = json.decoder.scanstring
+
+        self.assertEqual(ss('"1999-01-01"', 1), ('1999-01-01', 12))
+        self.assertEqual(ss('"1999-01-01T01:02:03"', 1), ('1999-01-01T01:02:03', 21))
+        self.assertEqual(ss('"1999-01-01T01:02:03Z"', 1), ('1999-01-01T01:02:03Z', 22))
+        self.assertEqual(ss('"10:20:30"', 1), ('10:20:30', 10))
+
+        self.assertEqual(ss('"1999-01-01"', 1, None, True, True, utc),
+                         (Date(1999, 1, 1), 12))
+        self.assertEqual(ss('"1999-01-01T01:02:03"', 1, None, True, True, utc),
+                         (DateTime(1999, 1, 1, 1, 2, 3), 21))
+        self.assertEqual(ss('"1999-01-01T01:02:03Z"', 1, None, True, True, utc),
+                         (DateTime(1999, 1, 1, 1, 2, 3, 0, utc), 22))
+        self.assertEqual(ss('"10:20:30"', 1, None, True, True, utc),
+                         (Time(10, 20, 30), 10))
