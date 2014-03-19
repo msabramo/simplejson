@@ -997,19 +997,21 @@ _build_rval_index_tuple(PyObject *rval, Py_ssize_t idx)
     return tpl;
 }
 
-#define APPEND_OLD_CHUNK \
-    if (chunk != NULL) { \
-        if (chunks == NULL) { \
-            chunks = PyList_New(0); \
-            if (chunks == NULL) { \
-                goto bail; \
-            } \
-        } \
-        if (PyList_Append(chunks, chunk)) { \
-            goto bail; \
-        } \
-        Py_CLEAR(chunk); \
-    }
+#define APPEND_OLD_CHUNK                        \
+    do {                                        \
+        if (chunk != NULL) {                    \
+            if (chunks == NULL) {               \
+                chunks = PyList_New(0);         \
+                if (chunks == NULL) {           \
+                    goto bail;                  \
+                }                               \
+            }                                   \
+            if (PyList_Append(chunks, chunk)) { \
+                goto bail;                      \
+            }                                   \
+            Py_CLEAR(chunk);                    \
+        }                                       \
+    } while (0)
 
 #define _IS_DATETIME                                                    \
 int res = 0;                                                            \
@@ -1359,7 +1361,7 @@ scanstring_str(PyObject *pystr, Py_ssize_t end, char *encoding, int strict,
         if (c > 0x7f) {
             has_unicode = 1;
         }
-        APPEND_OLD_CHUNK
+        APPEND_OLD_CHUNK;
         if (has_unicode) {
             chunk = JSON_UnicodeFromChar(c);
             if (chunk == NULL) {
@@ -1382,7 +1384,7 @@ scanstring_str(PyObject *pystr, Py_ssize_t end, char *encoding, int strict,
             rval = JSON_NewEmptyUnicode();
     }
     else {
-        APPEND_OLD_CHUNK
+        APPEND_OLD_CHUNK;
         rval = join_list_string(chunks);
         if (rval == NULL) {
             goto bail;
@@ -1600,7 +1602,7 @@ scanstring_unicode(PyObject *pystr, Py_ssize_t end, int strict,
             }
 #endif
         }
-        APPEND_OLD_CHUNK
+        APPEND_OLD_CHUNK;
         chunk = JSON_UnicodeFromChar(c);
         if (chunk == NULL) {
             goto bail;
@@ -1614,7 +1616,7 @@ scanstring_unicode(PyObject *pystr, Py_ssize_t end, int strict,
             rval = JSON_NewEmptyUnicode();
     }
     else {
-        APPEND_OLD_CHUNK
+        APPEND_OLD_CHUNK;
         rval = join_list_unicode(chunks);
         if (rval == NULL) {
             goto bail;
