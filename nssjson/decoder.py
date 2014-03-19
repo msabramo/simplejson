@@ -4,7 +4,7 @@ from __future__ import absolute_import
 import re
 import sys
 import struct
-from .compat import fromhex, b, u, text_type, binary_type, PY3, unichr, utc
+from .compat import fromhex, u, text_type, binary_type, PY3, unichr, utc
 from .scanner import make_scanner, JSONDecodeError
 
 def _import_c_scanstring():
