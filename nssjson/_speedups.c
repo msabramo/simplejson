@@ -1646,14 +1646,16 @@ bail:
 #endif
 
 PyDoc_STRVAR(pydoc_scanstring,
-    "scanstring(basestring, end, encoding, strict=True, iso_datetime=True) -> (str, end)\n"
+    "scanstring(basestring, end, encoding, strict=True, iso_datetime=False, utc=None) -> (str, end)\n"
     "\n"
     "Scan the string s for a JSON string. End is the index of the\n"
     "character in s after the quote that started the JSON string.\n"
     "Unescapes all valid JSON string escape sequences and raises ValueError\n"
     "on attempt to decode an invalid string. If strict is False then literal\n"
-    "control characters are allowed in the string. If iso_datetime is True\n"
-    "then strings may contain ISO formatted datetime, date or time.\n"
+    "control characters are allowed in the string.\n"
+    "\n"
+    "If iso_datetime is True then strings may contain ISO formatted datetime,\n"
+    "date or time: in this case the utc parameter must be a tzinfo instance.\n"
     "\n"
     "Returns a tuple of the decoded string (or possibly an instance of datetime,\n"
     "date or time when iso_datetime is True) and the index of the character in s\n"

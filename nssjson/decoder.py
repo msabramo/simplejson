@@ -111,14 +111,17 @@ def _datetime_or_string(string):
 
     return string
 
-def py_scanstring(s, end, encoding=None, strict=True, iso_datetime=False,
-        _b=BACKSLASH, _m=STRINGCHUNK.match, _join=u('').join,
-        _PY3=PY3, _maxunicode=sys.maxunicode):
+def py_scanstring(s, end, encoding=None, strict=True, iso_datetime=False, utc=utc,
+                  _b=BACKSLASH, _m=STRINGCHUNK.match, _join=u('').join,
+                  _PY3=PY3, _maxunicode=sys.maxunicode):
     """Scan the string s for a JSON string. End is the index of the
     character in s after the quote that started the JSON string.
     Unescapes all valid JSON string escape sequences and raises ValueError
     on attempt to decode an invalid string. If strict is False then literal
     control characters are allowed in the string.
+
+    If iso_datetime is True then strings may contain ISO formatted datetime,
+    date or time: in this case the utc parameter must be a tzinfo instance.
 
     Returns a tuple of the decoded string and the index of the character in s
     after the end quote."""
