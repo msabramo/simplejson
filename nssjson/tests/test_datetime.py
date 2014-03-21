@@ -163,11 +163,11 @@ class TestScanString(TestCase):
         self.assertEqual(ss('"1999-01-01T01:02:03Z"', 1), ('1999-01-01T01:02:03Z', 22))
         self.assertEqual(ss('"10:20:30"', 1), ('10:20:30', 10))
 
-        self.assertEqual(ss('"1999-01-01"', 1, None, True, True, utc),
+        self.assertEqual(ss('"1999-01-01"', 1, None, True, True),
                          (Date(1999, 1, 1), 12))
-        self.assertEqual(ss('"1999-01-01T01:02:03"', 1, None, True, True, utc),
+        self.assertEqual(ss('"1999-01-01T01:02:03"', 1, None, True, True),
                          (DateTime(1999, 1, 1, 1, 2, 3), 21))
-        self.assertEqual(ss('"1999-01-01T01:02:03Z"', 1, None, True, True, utc),
+        self.assertEqual(ss('"1999-01-01T01:02:03Z"', 1, None, True, True),
                          (DateTime(1999, 1, 1, 1, 2, 3, 0, utc), 22))
-        self.assertEqual(ss('"10:20:30"', 1, None, True, True, utc),
+        self.assertEqual(ss('"10:20:30"', 1, None, True, True),
                          (Time(10, 20, 30), 10))

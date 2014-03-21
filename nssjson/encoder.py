@@ -336,7 +336,7 @@ class JSONEncoder(object):
                 self.namedtuple_as_object, self.tuple_as_array,
                 self.bigint_as_string, self.item_sort_key,
                 self.encoding, self.for_json, self.ignore_nan,
-                Decimal, utc)
+                Decimal)
         else:
             _iterencode = _make_iterencode(
                 markers, self.default, _encoder, self.indent, floatstr,
@@ -346,7 +346,7 @@ class JSONEncoder(object):
                 self.namedtuple_as_object, self.tuple_as_array,
                 self.bigint_as_string, self.item_sort_key,
                 self.encoding, self.for_json,
-                Decimal=Decimal, utc=utc)
+                Decimal=Decimal)
         try:
             return _iterencode(o, 0)
         finally:

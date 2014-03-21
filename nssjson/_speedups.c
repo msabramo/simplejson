@@ -126,6 +126,9 @@ json_accumulator_destroy(json_accumulator *acc);
 #define ERR_STRING_ESC1 "Invalid \\X escape sequence %r"
 #define ERR_STRING_ESC4 "Invalid \\uXXXX escape sequence"
 
+/* The interned UTC timezone instance */
+static PyObject *json_timezone_utc;
+
 typedef struct _PyScannerObject {
     PyObject_HEAD
     PyObject *encoding;
@@ -136,7 +139,6 @@ typedef struct _PyScannerObject {
     PyObject *parse_int;
     PyObject *parse_constant;
     PyObject *iso_datetime;
-    PyObject *utc;
     PyObject *memo;
 } PyScannerObject;
 
@@ -149,7 +151,6 @@ static PyMemberDef scanner_members[] = {
     {"parse_int", T_OBJECT, offsetof(PyScannerObject, parse_int), READONLY, "parse_int"},
     {"parse_constant", T_OBJECT, offsetof(PyScannerObject, parse_constant), READONLY, "parse_constant"},
     {"iso_datetime", T_OBJECT, offsetof(PyScannerObject, iso_datetime), READONLY, "iso_datetime"},
-    {"utc", T_OBJECT, offsetof(PyScannerObject, utc), READONLY, "utc"},
     {NULL}
 };
 
@@ -165,7 +166,6 @@ typedef struct _PyEncoderObject {
     PyObject *key_memo;
     PyObject *encoding;
     PyObject *Decimal;
-    PyObject *utc;
     PyObject *skipkeys_bool;
     int skipkeys;
     int fast_encode;
@@ -223,13 +223,13 @@ static PyObject *
 scan_once_str(PyScannerObject *s, PyObject *pystr, Py_ssize_t idx, Py_ssize_t *next_idx_ptr);
 static PyObject *
 scanstring_str(PyObject *pystr, Py_ssize_t end, char *encoding, int strict,
-               int iso_datetime, PyObject *utc, Py_ssize_t *next_end_ptr);
+               int iso_datetime, Py_ssize_t *next_end_ptr);
 static PyObject *
 _parse_object_str(PyScannerObject *s, PyObject *pystr, Py_ssize_t idx, Py_ssize_t *next_idx_ptr);
 #endif
 static PyObject *
 scanstring_unicode(PyObject *pystr, Py_ssize_t end, int strict,
-                   int iso_datetime, PyObject *utc, Py_ssize_t *next_end_ptr);
+                   int iso_datetime, Py_ssize_t *next_end_ptr);
 static PyObject *
 scan_once_unicode(PyScannerObject *s, PyObject *pystr, Py_ssize_t idx, Py_ssize_t *next_idx_ptr);
 static PyObject *
@@ -801,7 +801,7 @@ encoder_stringify_key(PyEncoderObject *s, PyObject *key)
 
             if (s->utc_datetime || isutc) {
                 if (utcoffset != Py_None && !isutc) {
-                    PyObject *asutc = PyObject_CallMethod(key, "astimezone", "O", s->utc);
+                    PyObject *asutc = PyObject_CallMethod(key, "astimezone", "O", json_timezone_utc);
                     PyObject *res;
 
                     if (asutc == NULL) {
@@ -1168,8 +1168,8 @@ switch(len) {                                                           \
         }                                                               \
         if (len == 20 || len == 24 || len == 27) {                      \
             res = PyDateTimeAPI->DateTime_FromDateAndTime(              \
-                year, month, day, hours, mins, secs, usecs, utc,        \
-                PyDateTimeAPI->DateTimeType);                           \
+                year, month, day, hours, mins, secs, usecs,             \
+                json_timezone_utc, PyDateTimeAPI->DateTimeType);        \
         }                                                               \
         else {                                                          \
             res = PyDateTime_FromDateAndTime(                           \
@@ -1199,7 +1199,7 @@ _is_datetime_str(const char *p, Py_ssize_t len)
 }
 
 static PyObject *
-_scan_datetime_str(const char *p, Py_ssize_t len, PyObject *utc)
+_scan_datetime_str(const char *p, Py_ssize_t len)
 {
     _SCAN_DATETIME;
 }
@@ -1210,7 +1210,7 @@ _scan_datetime_str(const char *p, Py_ssize_t len, PyObject *utc)
 
 static PyObject *
 scanstring_str(PyObject *pystr, Py_ssize_t end, char *encoding, int strict,
-               int iso_datetime, PyObject *utc, Py_ssize_t *next_end_ptr)
+               int iso_datetime, Py_ssize_t *next_end_ptr)
 {
     /* Read the JSON string from PyString pystr.
     end is the index of the first character after the quote.
@@ -1272,7 +1272,7 @@ scanstring_str(PyObject *pystr, Py_ssize_t end, char *encoding, int strict,
                 && (next - end) >= 8 && (next - end) <= 27
                 && _is_datetime_str(&buf[end], next - end)) {
                 *next_end_ptr = next + 1;
-                return _scan_datetime_str(&buf[end], next - end, utc);
+                return _scan_datetime_str(&buf[end], next - end);
             }
             APPEND_OLD_CHUNK;
             strchunk = PyString_FromStringAndSize(&buf[end], next - end);
@@ -1438,7 +1438,7 @@ _is_datetime_unicode(int kind, const void *p, Py_ssize_t len)
 }
 
 static PyObject *
-_scan_datetime_unicode(int kind, const void *p, Py_ssize_t len, PyObject *utc)
+_scan_datetime_unicode(int kind, const void *p, Py_ssize_t len)
 {
     _SCAN_DATETIME;
 }
@@ -1465,7 +1465,7 @@ _scan_datetime_unicode(int kind, const void *p, Py_ssize_t len, PyObject *utc)
 
 static PyObject *
 scanstring_unicode(PyObject *pystr, Py_ssize_t end, int strict,
-                   int iso_datetime, PyObject *utc, Py_ssize_t *next_end_ptr)
+                   int iso_datetime, Py_ssize_t *next_end_ptr)
 {
     /* Read the JSON string from PyUnicode pystr.
     end is the index of the first character after the quote.
@@ -1521,7 +1521,7 @@ scanstring_unicode(PyObject *pystr, Py_ssize_t end, int strict,
                 && (next - end) >= 8 && (next - end) <= 27
                 && _is_datetime_unicode(kind, _UNICODE_OFFSET(kind, buf, end), next - end)) {
                 *next_end_ptr = next + 1;
-                return _scan_datetime_unicode(kind, _UNICODE_OFFSET(kind, buf, end), next - end, utc);
+                return _scan_datetime_unicode(kind, _UNICODE_OFFSET(kind, buf, end), next - end);
             }
             APPEND_OLD_CHUNK;
 #if PY_MAJOR_VERSION < 3
@@ -1663,7 +1663,7 @@ bail:
 #endif
 
 PyDoc_STRVAR(pydoc_scanstring,
-    "scanstring(basestring, end, encoding, strict=True, iso_datetime=False, utc=None) -> (str, end)\n"
+    "scanstring(basestring, end, encoding, strict=True, iso_datetime=False) -> (str, end)\n"
     "\n"
     "Scan the string s for a JSON string. End is the index of the\n"
     "character in s after the quote that started the JSON string.\n"
@@ -1672,7 +1672,7 @@ PyDoc_STRVAR(pydoc_scanstring,
     "control characters are allowed in the string.\n"
     "\n"
     "If iso_datetime is True then strings may contain ISO formatted datetime,\n"
-    "date or time: in this case the utc parameter must be a tzinfo instance.\n"
+    "date or time.\n"
     "\n"
     "Returns a tuple of the decoded string (or possibly an instance of datetime,\n"
     "date or time when iso_datetime is True) and the index of the character in s\n"
@@ -1689,26 +1689,22 @@ py_scanstring(PyObject* self UNUSED, PyObject *args)
     char *encoding = NULL;
     int strict = 1;
     int iso_datetime = 0;
-    PyObject *utc = NULL;
-    if (!PyArg_ParseTuple(args, "OO&|ziiO:scanstring", &pystr, _convertPyInt_AsSsize_t, &end,
-                          &encoding, &strict, &iso_datetime, &utc)) {
-        return NULL;
-    }
-    if (iso_datetime && (utc == NULL || !PyTZInfo_Check(utc))) {
-        PyErr_SetString(PyExc_ValueError, "the utc argument must be a tzinfo instance");
+
+    if (!PyArg_ParseTuple(args, "OO&|zii:scanstring", &pystr, _convertPyInt_AsSsize_t, &end,
+                          &encoding, &strict, &iso_datetime)) {
         return NULL;
     }
     if (encoding == NULL) {
         encoding = DEFAULT_ENCODING;
     }
     if (PyUnicode_Check(pystr)) {
-        rval = scanstring_unicode(pystr, end, strict, iso_datetime, utc, &next_end);
+        rval = scanstring_unicode(pystr, end, strict, iso_datetime, &next_end);
     }
 #if PY_MAJOR_VERSION < 3
     /* Using a bytes input is unsupported for scanning in Python 3.
        It is coerced to str in the decoder before it gets here. */
     else if (PyString_Check(pystr)) {
-        rval = scanstring_str(pystr, end, encoding, strict, iso_datetime, utc, &next_end);
+        rval = scanstring_str(pystr, end, encoding, strict, iso_datetime, &next_end);
     }
 #endif
     else {
@@ -1811,7 +1807,6 @@ _parse_object_str(PyScannerObject *s, PyObject *pystr, Py_ssize_t idx, Py_ssize_
     char *encoding = JSON_ASCII_AS_STRING(s->encoding);
     int strict = PyObject_IsTrue(s->strict);
     int iso_datetime = PyObject_IsTrue(s->iso_datetime);
-    PyObject *utc = s->utc;
     int has_pairs_hook = (s->pairs_hook != Py_None);
     int did_parse = 0;
     Py_ssize_t next_idx;
@@ -1841,7 +1836,7 @@ _parse_object_str(PyScannerObject *s, PyObject *pystr, Py_ssize_t idx, Py_ssize_
                 raise_errmsg(ERR_OBJECT_PROPERTY, pystr, idx);
                 goto bail;
             }
-            key = scanstring_str(pystr, idx + 1, encoding, strict, iso_datetime, utc, &next_idx);
+            key = scanstring_str(pystr, idx + 1, encoding, strict, iso_datetime, &next_idx);
             if (key == NULL)
                 goto bail;
             memokey = PyDict_GetItem(s->memo, key);
@@ -1974,7 +1969,6 @@ _parse_object_unicode(PyScannerObject *s, PyObject *pystr, Py_ssize_t idx, Py_ss
     PyObject *val = NULL;
     int strict = PyObject_IsTrue(s->strict);
     int iso_datetime = PyObject_IsTrue(s->iso_datetime);
-    PyObject *utc = s->utc;
     int has_pairs_hook = (s->pairs_hook != Py_None);
     int did_parse = 0;
     Py_ssize_t next_idx;
@@ -2005,7 +1999,7 @@ _parse_object_unicode(PyScannerObject *s, PyObject *pystr, Py_ssize_t idx, Py_ss
                 raise_errmsg(ERR_OBJECT_PROPERTY, pystr, idx);
                 goto bail;
             }
-            key = scanstring_unicode(pystr, idx + 1, strict, iso_datetime, utc, &next_idx);
+            key = scanstring_unicode(pystr, idx + 1, strict, iso_datetime, &next_idx);
             if (key == NULL)
                 goto bail;
             memokey = PyDict_GetItem(s->memo, key);
@@ -2551,7 +2545,6 @@ scan_once_str(PyScannerObject *s, PyObject *pystr, Py_ssize_t idx, Py_ssize_t *n
                                   JSON_ASCII_AS_STRING(s->encoding),
                                   PyObject_IsTrue(s->strict),
                                   PyObject_IsTrue(s->iso_datetime),
-                                  s->utc,
                                   next_idx_ptr);
             break;
         case '{':
@@ -2682,7 +2675,6 @@ scan_once_unicode(PyScannerObject *s, PyObject *pystr, Py_ssize_t idx, Py_ssize_
             rval = scanstring_unicode(pystr, idx + 1,
                                       PyObject_IsTrue(s->strict),
                                       PyObject_IsTrue(s->iso_datetime),
-                                      s->utc,
                                       next_idx_ptr);
             break;
         case '{':
@@ -2839,7 +2831,6 @@ scanner_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
         s->parse_int = NULL;
         s->parse_constant = NULL;
         s->iso_datetime = NULL;
-        s->utc = NULL;
     }
     return (PyObject *)s;
 }
@@ -2913,9 +2904,6 @@ scanner_init(PyObject *self, PyObject *args, PyObject *kwds)
     s->iso_datetime = PyObject_GetAttrString(ctx, "iso_datetime");
     if (s->iso_datetime == NULL)
         goto bail;
-    s->utc = PyObject_GetAttrString(ctx, "utc");
-    if (s->utc == NULL)
-        goto bail;
 
     return 0;
 
@@ -2928,7 +2916,6 @@ bail:
     Py_CLEAR(s->parse_int);
     Py_CLEAR(s->parse_constant);
     Py_CLEAR(s->iso_datetime);
-    Py_CLEAR(s->utc);
     return -1;
 }
 
@@ -2995,7 +2982,6 @@ encoder_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
         s->item_sort_key = NULL;
         s->item_sort_kw = NULL;
         s->Decimal = NULL;
-        s->utc = NULL;
     }
     return (PyObject *)s;
 }
@@ -3009,23 +2995,23 @@ encoder_init(PyObject *self, PyObject *args, PyObject *kwds)
                              "key_memo", "use_decimal", "iso_datetime", "utc_datetime",
                              "namedtuple_as_object", "tuple_as_array", "bigint_as_string",
                              "item_sort_key", "encoding", "for_json", "ignore_nan",
-                             "Decimal", "utc", NULL};
+                             "Decimal", NULL};
 
     PyEncoderObject *s;
     PyObject *markers, *defaultfn, *encoder, *indent, *key_separator;
     PyObject *item_separator, *sort_keys, *skipkeys, *allow_nan, *key_memo;
     PyObject *use_decimal, *iso_datetime, *utc_datetime, *namedtuple_as_object, *tuple_as_array;
     PyObject *bigint_as_string, *item_sort_key, *encoding, *for_json;
-    PyObject *ignore_nan, *Decimal, *utc;
+    PyObject *ignore_nan, *Decimal;
 
     assert(PyEncoder_Check(self));
     s = (PyEncoderObject *)self;
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "OOOOOOOOOOOOOOOOOOOOOO:make_encoder", kwlist,
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "OOOOOOOOOOOOOOOOOOOOO:make_encoder", kwlist,
         &markers, &defaultfn, &encoder, &indent, &key_separator, &item_separator,
         &sort_keys, &skipkeys, &allow_nan, &key_memo, &use_decimal, &iso_datetime, &utc_datetime,
         &namedtuple_as_object, &tuple_as_array, &bigint_as_string,
-        &item_sort_key, &encoding, &for_json, &ignore_nan, &Decimal, &utc))
+        &item_sort_key, &encoding, &for_json, &ignore_nan, &Decimal))
         return -1;
 
     s->markers = markers;
@@ -3083,7 +3069,6 @@ encoder_init(PyObject *self, PyObject *args, PyObject *kwds)
     s->item_sort_key = item_sort_key;
     s->Decimal = Decimal;
     s->for_json = PyObject_IsTrue(for_json);
-    s->utc = utc;
 
     Py_INCREF(s->markers);
     Py_INCREF(s->defaultfn);
@@ -3096,7 +3081,7 @@ encoder_init(PyObject *self, PyObject *args, PyObject *kwds)
     Py_INCREF(s->sort_keys);
     Py_INCREF(s->item_sort_key);
     Py_INCREF(s->Decimal);
-    Py_INCREF(s->utc);
+
     return 0;
 }
 
@@ -3303,7 +3288,8 @@ encoder_listencode_obj(PyEncoderObject *s, json_accumulator *rval, PyObject *obj
 
                 if (s->utc_datetime || isutc) {
                     if (utcoffset != Py_None && !isutc) {
-                        PyObject *asutc = PyObject_CallMethod(obj, "astimezone", "O", s->utc);
+                        PyObject *asutc = PyObject_CallMethod(obj, "astimezone", "O",
+                                                              json_timezone_utc);
 
                         if (asutc == NULL) {
                             encoded = NULL;
@@ -3639,7 +3625,6 @@ encoder_traverse(PyObject *self, visitproc visit, void *arg)
     Py_VISIT(s->item_sort_kw);
     Py_VISIT(s->item_sort_key);
     Py_VISIT(s->Decimal);
-    Py_VISIT(s->utc);
     return 0;
 }
 
@@ -3663,7 +3648,6 @@ encoder_clear(PyObject *self)
     Py_CLEAR(s->item_sort_kw);
     Py_CLEAR(s->item_sort_key);
     Py_CLEAR(s->Decimal);
-    Py_CLEAR(s->utc);
     return 0;
 }
 
@@ -3744,7 +3728,7 @@ static struct PyModuleDef moduledef = {
 static PyObject *
 moduleinit(void)
 {
-    PyObject *m;
+    PyObject *m, *compat;
     PyScannerType.tp_new = PyType_GenericNew;
     if (PyType_Ready(&PyScannerType) < 0)
         return NULL;
@@ -3764,6 +3748,14 @@ moduleinit(void)
     PyModule_AddObject(m, "make_encoder", (PyObject*)&PyEncoderType);
 
     PyDateTime_IMPORT;
+
+    compat = PyImport_ImportModule("nssjson.compat");
+    if (compat == NULL)
+        return NULL;
+    json_timezone_utc = PyObject_GetAttrString(compat, "utc");
+    Py_DECREF(compat);
+    if (json_timezone_utc == NULL)
+        return NULL;
 
     return m;
 }
