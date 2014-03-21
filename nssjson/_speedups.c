@@ -668,6 +668,14 @@ _datetime_iso_format(PyObject *value, int quoted, int isutc) {
     second = PyDateTime_DATE_GET_SECOND(value);
     microsecond = PyDateTime_DATE_GET_MICROSECOND(value);
 
+    assert(year >= 1 && year <= 9999);
+    assert(month >= 1 && month <= 12);
+    assert(day >= 1 && day <= 31);
+    assert(hour >= 0 && hour <= 23);
+    assert(minute >= 0 && minute <= 59);
+    assert(second >= 0 && second <= 59);
+    assert(microsecond >= 0 && microsecond <= 999999);
+
     if (microsecond) {
         sprintf(buffer, "%s%04d-%02d-%02dT%02d:%02d:%02d.%06d%s%s",
                 quoted ? "\"" : "",
@@ -698,6 +706,10 @@ _date_iso_format(PyObject *value, int quoted) {
     month = PyDateTime_GET_MONTH(value);
     day = PyDateTime_GET_DAY(value);
 
+    assert(year >= 1 && year <= 9999);
+    assert(month >= 1 && month <= 12);
+    assert(day >= 1 && day <= 31);
+
     sprintf(buffer, "%s%04d-%02d-%02d%s",
             quoted ? "\"" : "",
             year, month, day,
@@ -719,6 +731,11 @@ _time_iso_format(PyObject *value, int quoted) {
     minute = PyDateTime_TIME_GET_MINUTE(value);
     second = PyDateTime_TIME_GET_SECOND(value);
     microsecond = PyDateTime_TIME_GET_MICROSECOND(value);
+
+    assert(hour >= 0 && hour <= 23);
+    assert(minute >= 0 && minute <= 59);
+    assert(second >= 0 && second <= 59);
+    assert(microsecond >= 0 && microsecond <= 999999);
 
     if (microsecond) {
         sprintf(buffer, "%s%02d:%02d:%02d.%06d%s",
