@@ -46,6 +46,7 @@ major-release: assert-nssjson-branch assert-clean-tree
 
 .PHONY: tag-release
 tag-release: assert-nssjson-branch test-readme+changes-markup
+	sed -i "s/__version__ = '.*'/__version__ = '$(VERSION)'/" nssjson/__init__.py
 	git commit -a -m "Release $(VERSION)"
 	git tag -a -m "Version $(VERSION)" nssjson_v$(VERSION)
 
