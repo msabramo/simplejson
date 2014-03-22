@@ -1,7 +1,7 @@
 Changes
 -------
 
-0.2 (unreleased)
+0.2 (2014-03-22)
 ~~~~~~~~~~~~~~~~
 
 * Remove dead code noticed by Anatoly Techtonik
