@@ -1,6 +1,15 @@
 Changes
 -------
 
+0.2 (unreleased)
+~~~~~~~~~~~~~~~~
+
+* Remove dead code noticed by Anatoly Techtonik
+
+* Use an interned instance of the UTC timezone instead of passing it as an argument to
+  function/constructors
+
+
 0.1 (2014-03-19)
 ~~~~~~~~~~~~~~~~
 
