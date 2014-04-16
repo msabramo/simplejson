@@ -11,6 +11,15 @@ class TestDecode(TestCase):
             return
         self.assertRaises(AttributeError, scanner.c_make_scanner, 1)
 
+    def test_scan_once(self):
+        if not has_speedups():
+            return
+        from nssjson import _default_decoder as dd
+        self.assertRaises(ValueError, dd.scan_once, '"foo"', -1)
+        self.assertRaises(ValueError, dd.scan_once, u'"foo"', -1)
+        self.assertEqual(dd.scan_once('"foo"', 0), ('foo', 5))
+        self.assertEqual(dd.scan_once(u'"foo"', 0), ('foo', 5))
+
     def test_make_encoder(self):
         if not has_speedups():
             return
