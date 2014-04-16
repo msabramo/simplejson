@@ -2544,6 +2544,7 @@ scan_once_str(PyScannerObject *s, PyObject *pystr, Py_ssize_t idx, Py_ssize_t *n
         raise_errmsg(ERR_EXPECTING_VALUE, pystr, idx);
         return NULL;
     }
+
     switch (str[idx]) {
         case '"':
             /* string */
@@ -2681,6 +2682,7 @@ scan_once_unicode(PyScannerObject *s, PyObject *pystr, Py_ssize_t idx, Py_ssize_
         raise_errmsg(ERR_EXPECTING_VALUE, pystr, idx);
         return NULL;
     }
+
     switch (PyUnicode_READ(kind, str, idx)) {
         case '"':
             /* string */
@@ -3514,7 +3516,6 @@ bail:
     Py_XDECREF(ident);
     return -1;
 }
-
 
 static int
 encoder_listencode_list(PyEncoderObject *s, json_accumulator *rval, PyObject *seq,
