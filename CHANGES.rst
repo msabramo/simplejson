@@ -1,7 +1,7 @@
 Changes
 -------
 
-0.3 (unreleased)
+0.3 (2014-04-16)
 ~~~~~~~~~~~~~~~~
 
 * Update version in nssjson/__init__.py at release time
