@@ -1,6 +1,15 @@
 Changes
 -------
 
+0.3 (unreleased)
+~~~~~~~~~~~~~~~~
+
+* Update version in nssjson/__init__.py at release time
+
+* Catch negative index parameter to the C scan_once() function, mimicking
+  http://hg.python.org/cpython/rev/ef52ae167555
+
+
 0.2 (2014-03-22)
 ~~~~~~~~~~~~~~~~
 
