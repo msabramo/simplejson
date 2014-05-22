@@ -2938,44 +2938,44 @@ PyDoc_STRVAR(scanner_doc, "JSON scanner object");
 static
 PyTypeObject PyScannerType = {
     PyVarObject_HEAD_INIT(NULL, 0)
-    "nssjson._speedups.Scanner",       /* tp_name */
-    sizeof(PyScannerObject), /* tp_basicsize */
-    0,                    /* tp_itemsize */
-    scanner_dealloc, /* tp_dealloc */
-    0,                    /* tp_print */
-    0,                    /* tp_getattr */
-    0,                    /* tp_setattr */
-    0,                    /* tp_compare */
-    0,                    /* tp_repr */
-    0,                    /* tp_as_number */
-    0,                    /* tp_as_sequence */
-    0,                    /* tp_as_mapping */
-    0,                    /* tp_hash */
-    scanner_call,         /* tp_call */
-    0,                    /* tp_str */
-    0,/* PyObject_GenericGetAttr, */                    /* tp_getattro */
-    0,/* PyObject_GenericSetAttr, */                    /* tp_setattro */
-    0,                    /* tp_as_buffer */
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC,   /* tp_flags */
-    scanner_doc,          /* tp_doc */
-    scanner_traverse,                    /* tp_traverse */
-    scanner_clear,                    /* tp_clear */
-    0,                    /* tp_richcompare */
-    0,                    /* tp_weaklistoffset */
-    0,                    /* tp_iter */
-    0,                    /* tp_iternext */
-    0,                    /* tp_methods */
-    scanner_members,                    /* tp_members */
-    0,                    /* tp_getset */
-    0,                    /* tp_base */
-    0,                    /* tp_dict */
-    0,                    /* tp_descr_get */
-    0,                    /* tp_descr_set */
-    0,                    /* tp_dictoffset */
-    scanner_init,                    /* tp_init */
-    0,/* PyType_GenericAlloc, */        /* tp_alloc */
-    scanner_new,          /* tp_new */
-    0,/* PyObject_GC_Del, */              /* tp_free */
+    "nssjson._speedups.Scanner",             /* tp_name */
+    sizeof(PyScannerObject),                 /* tp_basicsize */
+    0,                                       /* tp_itemsize */
+    scanner_dealloc,                         /* tp_dealloc */
+    0,                                       /* tp_print */
+    0,                                       /* tp_getattr */
+    0,                                       /* tp_setattr */
+    0,                                       /* tp_compare */
+    0,                                       /* tp_repr */
+    0,                                       /* tp_as_number */
+    0,                                       /* tp_as_sequence */
+    0,                                       /* tp_as_mapping */
+    0,                                       /* tp_hash */
+    scanner_call,                            /* tp_call */
+    0,                                       /* tp_str */
+    0,/* PyObject_GenericGetAttr, */         /* tp_getattro */
+    0,/* PyObject_GenericSetAttr, */         /* tp_setattro */
+    0,                                       /* tp_as_buffer */
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC, /* tp_flags */
+    scanner_doc,                             /* tp_doc */
+    scanner_traverse,                        /* tp_traverse */
+    scanner_clear,                           /* tp_clear */
+    0,                                       /* tp_richcompare */
+    0,                                       /* tp_weaklistoffset */
+    0,                                       /* tp_iter */
+    0,                                       /* tp_iternext */
+    0,                                       /* tp_methods */
+    scanner_members,                         /* tp_members */
+    0,                                       /* tp_getset */
+    0,                                       /* tp_base */
+    0,                                       /* tp_dict */
+    0,                                       /* tp_descr_get */
+    0,                                       /* tp_descr_set */
+    0,                                       /* tp_dictoffset */
+    scanner_init,                            /* tp_init */
+    0,/* PyType_GenericAlloc, */             /* tp_alloc */
+    scanner_new,                             /* tp_new */
+    0,/* PyObject_GC_Del, */                 /* tp_free */
 };
 
 static PyObject *
@@ -3669,44 +3669,44 @@ PyDoc_STRVAR(encoder_doc, "_iterencode(obj, _current_indent_level) -> iterable")
 static
 PyTypeObject PyEncoderType = {
     PyVarObject_HEAD_INIT(NULL, 0)
-    "nssjson._speedups.Encoder",       /* tp_name */
-    sizeof(PyEncoderObject), /* tp_basicsize */
-    0,                    /* tp_itemsize */
-    encoder_dealloc, /* tp_dealloc */
-    0,                    /* tp_print */
-    0,                    /* tp_getattr */
-    0,                    /* tp_setattr */
-    0,                    /* tp_compare */
-    0,                    /* tp_repr */
-    0,                    /* tp_as_number */
-    0,                    /* tp_as_sequence */
-    0,                    /* tp_as_mapping */
-    0,                    /* tp_hash */
-    encoder_call,         /* tp_call */
-    0,                    /* tp_str */
-    0,                    /* tp_getattro */
-    0,                    /* tp_setattro */
-    0,                    /* tp_as_buffer */
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC,   /* tp_flags */
-    encoder_doc,          /* tp_doc */
-    encoder_traverse,     /* tp_traverse */
-    encoder_clear,        /* tp_clear */
-    0,                    /* tp_richcompare */
-    0,                    /* tp_weaklistoffset */
-    0,                    /* tp_iter */
-    0,                    /* tp_iternext */
-    0,                    /* tp_methods */
-    encoder_members,      /* tp_members */
-    0,                    /* tp_getset */
-    0,                    /* tp_base */
-    0,                    /* tp_dict */
-    0,                    /* tp_descr_get */
-    0,                    /* tp_descr_set */
-    0,                    /* tp_dictoffset */
-    encoder_init,         /* tp_init */
-    0,                    /* tp_alloc */
-    encoder_new,          /* tp_new */
-    0,                    /* tp_free */
+    "nssjson._speedups.Encoder",             /* tp_name */
+    sizeof(PyEncoderObject),                 /* tp_basicsize */
+    0,                                       /* tp_itemsize */
+    encoder_dealloc,                         /* tp_dealloc */
+    0,                                       /* tp_print */
+    0,                                       /* tp_getattr */
+    0,                                       /* tp_setattr */
+    0,                                       /* tp_compare */
+    0,                                       /* tp_repr */
+    0,                                       /* tp_as_number */
+    0,                                       /* tp_as_sequence */
+    0,                                       /* tp_as_mapping */
+    0,                                       /* tp_hash */
+    encoder_call,                            /* tp_call */
+    0,                                       /* tp_str */
+    0,                                       /* tp_getattro */
+    0,                                       /* tp_setattro */
+    0,                                       /* tp_as_buffer */
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC, /* tp_flags */
+    encoder_doc,                             /* tp_doc */
+    encoder_traverse,                        /* tp_traverse */
+    encoder_clear,                           /* tp_clear */
+    0,                                       /* tp_richcompare */
+    0,                                       /* tp_weaklistoffset */
+    0,                                       /* tp_iter */
+    0,                                       /* tp_iternext */
+    0,                                       /* tp_methods */
+    encoder_members,                         /* tp_members */
+    0,                                       /* tp_getset */
+    0,                                       /* tp_base */
+    0,                                       /* tp_dict */
+    0,                                       /* tp_descr_get */
+    0,                                       /* tp_descr_set */
+    0,                                       /* tp_dictoffset */
+    encoder_init,                            /* tp_init */
+    0,                                       /* tp_alloc */
+    encoder_new,                             /* tp_new */
+    0,                                       /* tp_free */
 };
 
 static PyMethodDef speedups_methods[] = {
