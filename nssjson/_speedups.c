@@ -3028,29 +3028,10 @@ encoder_init(PyObject *self, PyObject *args, PyObject *kwds)
         &item_sort_key, &encoding, &for_json, &ignore_nan, &Decimal))
         return -1;
 
-    s->markers = markers;
-    s->defaultfn = defaultfn;
-    s->encoder = encoder;
     s->encoding = json_parse_encoding(encoding);
     if (s->encoding == NULL)
         return -1;
-    s->indent = indent;
-    s->key_separator = key_separator;
-    s->item_separator = item_separator;
-    s->skipkeys_bool = skipkeys;
-    s->skipkeys = PyObject_IsTrue(skipkeys);
-    s->key_memo = key_memo;
-    s->fast_encode = (PyCFunction_Check(s->encoder) &&
-                      PyCFunction_GetFunction(s->encoder) == (PyCFunction)py_encode_basestring_ascii);
-    s->allow_or_ignore_nan = (
-        (PyObject_IsTrue(ignore_nan) ? JSON_IGNORE_NAN : 0) |
-        (PyObject_IsTrue(allow_nan) ? JSON_ALLOW_NAN : 0));
-    s->use_decimal = PyObject_IsTrue(use_decimal);
-    s->iso_datetime = PyObject_IsTrue(iso_datetime);
-    s->utc_datetime = PyObject_IsTrue(utc_datetime);
-    s->namedtuple_as_object = PyObject_IsTrue(namedtuple_as_object);
-    s->tuple_as_array = PyObject_IsTrue(tuple_as_array);
-    s->bigint_as_string = PyObject_IsTrue(bigint_as_string);
+
     if (item_sort_key != Py_None) {
         if (!PyCallable_Check(item_sort_key)) {
             PyErr_SetString(PyExc_TypeError, "item_sort_key must be None or callable");
@@ -3081,22 +3062,41 @@ encoder_init(PyObject *self, PyObject *args, PyObject *kwds)
         if (PyDict_SetItemString(s->item_sort_kw, "key", item_sort_key))
             return -1;
     }
-    s->sort_keys = sort_keys;
-    s->item_sort_key = item_sort_key;
-    s->Decimal = Decimal;
-    s->for_json = PyObject_IsTrue(for_json);
 
+    s->markers = markers;
     Py_INCREF(s->markers);
+    s->defaultfn = defaultfn;
     Py_INCREF(s->defaultfn);
+    s->encoder = encoder;
     Py_INCREF(s->encoder);
+    s->indent = indent;
     Py_INCREF(s->indent);
+    s->key_separator = key_separator;
     Py_INCREF(s->key_separator);
+    s->item_separator = item_separator;
     Py_INCREF(s->item_separator);
-    Py_INCREF(s->key_memo);
+    s->skipkeys_bool = skipkeys;
     Py_INCREF(s->skipkeys_bool);
+    s->skipkeys = PyObject_IsTrue(skipkeys);
+    s->key_memo = key_memo;
+    Py_INCREF(s->key_memo);
+    s->fast_encode = (PyCFunction_Check(s->encoder) &&
+                      PyCFunction_GetFunction(s->encoder) == (PyCFunction)py_encode_basestring_ascii);
+    s->allow_or_ignore_nan = ((PyObject_IsTrue(ignore_nan) ? JSON_IGNORE_NAN : 0) |
+                              (PyObject_IsTrue(allow_nan) ? JSON_ALLOW_NAN : 0));
+    s->use_decimal = PyObject_IsTrue(use_decimal);
+    s->iso_datetime = PyObject_IsTrue(iso_datetime);
+    s->utc_datetime = PyObject_IsTrue(utc_datetime);
+    s->namedtuple_as_object = PyObject_IsTrue(namedtuple_as_object);
+    s->tuple_as_array = PyObject_IsTrue(tuple_as_array);
+    s->bigint_as_string = PyObject_IsTrue(bigint_as_string);
+    s->sort_keys = sort_keys;
     Py_INCREF(s->sort_keys);
+    s->item_sort_key = item_sort_key;
     Py_INCREF(s->item_sort_key);
+    s->Decimal = Decimal;
     Py_INCREF(s->Decimal);
+    s->for_json = PyObject_IsTrue(for_json);
 
     return 0;
 }
