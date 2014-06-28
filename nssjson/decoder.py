@@ -1,6 +1,7 @@
 """Implementation of JSONDecoder
 """
 from __future__ import absolute_import
+from datetime import date, datetime, time
 import re
 import sys
 import struct
@@ -46,9 +47,7 @@ BACKSLASH = {
 
 DEFAULT_ENCODING = "utf-8"
 
-def _datetime_or_string(string):
-    from datetime import date, datetime, time
-
+def _datetime_or_string(string, _date=date, _datetime=datetime, _time=time):
     l = len(string)
 
     # Maybe a date
@@ -60,7 +59,7 @@ def _datetime_or_string(string):
             except ValueError:
                 pass
             else:
-                return date(y, m, d)
+                return _date(y, m, d)
 
     # Maybe a datetime
     if l == 19 or l == 20 or l == 23 or l == 24 or l == 26 or l == 27:
@@ -89,7 +88,7 @@ def _datetime_or_string(string):
                         except ValueError:
                             pass
                         else:
-                            return datetime(y, mo, d, h, m, s, ms, tz)
+                            return _datetime(y, mo, d, h, m, s, ms, tz)
 
     # Maybe a time
     if l == 8 or l == 12 or l == 15:
@@ -107,7 +106,7 @@ def _datetime_or_string(string):
                 except ValueError:
                     pass
                 else:
-                    return time(h, m, s, ms)
+                    return _time(h, m, s, ms)
 
     return string
 
