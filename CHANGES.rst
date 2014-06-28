@@ -1,7 +1,7 @@
 Changes
 -------
 
-0.4 (unreleased)
+0.4 (2014-06-28)
 ~~~~~~~~~~~~~~~~
 
 * Complete the fix against negative index parameter to raw_decode()
