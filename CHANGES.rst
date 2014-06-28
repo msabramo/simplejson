@@ -1,6 +1,16 @@
 Changes
 -------
 
+0.4 (unreleased)
+~~~~~~~~~~~~~~~~
+
+* Complete the fix against negative index parameter to raw_decode()
+
+* Fix C encoder initialization
+
+* Catch invalid item_sort_key argument to C encoder
+
+
 0.3 (2014-04-16)
 ~~~~~~~~~~~~~~~~
 
