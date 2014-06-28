@@ -2535,12 +2535,7 @@ scan_once_str(PyScannerObject *s, PyObject *pystr, Py_ssize_t idx, Py_ssize_t *n
     PyObject *rval = NULL;
     int fallthrough = 0;
 
-    if (idx < 0) {
-        PyErr_SetString(PyExc_ValueError, "idx cannot be negative");
-        return NULL;
-    }
-
-    if (idx >= length) {
+    if (idx < 0 || idx >= length) {
         raise_errmsg(ERR_EXPECTING_VALUE, pystr, idx);
         return NULL;
     }
@@ -2673,12 +2668,7 @@ scan_once_unicode(PyScannerObject *s, PyObject *pystr, Py_ssize_t idx, Py_ssize_
     PyObject *rval = NULL;
     int fallthrough = 0;
 
-    if (idx < 0) {
-        PyErr_SetString(PyExc_ValueError, "idx cannot be negative");
-        return NULL;
-    }
-
-    if (idx >= length) {
+    if (idx < 0 || idx >= length) {
         raise_errmsg(ERR_EXPECTING_VALUE, pystr, idx);
         return NULL;
     }
