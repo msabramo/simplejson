@@ -457,7 +457,8 @@ def load(fp, encoding=None, cls=None, object_hook=None, parse_float=None,
 
 def loads(s, encoding=None, cls=None, object_hook=None, parse_float=None,
           parse_int=None, parse_constant=None, object_pairs_hook=None,
-          use_decimal=False, utc_datetime=False, **kw):
+          use_decimal=False, iso_datetime=False, utc_datetime=False,
+          **kw):
     """Deserialize ``s`` (a ``str`` or ``unicode`` instance containing a JSON
     document) to a Python object.
 
@@ -510,10 +511,11 @@ def loads(s, encoding=None, cls=None, object_hook=None, parse_float=None,
     of subclassing whenever possible.
     """
 
-    if (cls is None and encoding is None and object_hook is None and
-            parse_int is None and parse_float is None and
-            parse_constant is None and object_pairs_hook is None
-            and not use_decimal and not kw):
+    if (cls is None and encoding is None and object_hook is None
+        and parse_int is None and parse_float is None
+        and parse_constant is None and object_pairs_hook is None
+        and not use_decimal and not iso_datetime and not utc_datetime
+        and not kw):
         return _default_decoder.decode(s)
     if cls is None:
         cls = JSONDecoder
@@ -531,6 +533,10 @@ def loads(s, encoding=None, cls=None, object_hook=None, parse_float=None,
         if parse_float is not None:
             raise TypeError("use_decimal=True implies parse_float=Decimal")
         kw['parse_float'] = Decimal
+    if iso_datetime:
+        kw['iso_datetime'] = True
+    if utc_datetime:
+        kw['utc_datetime'] = True
     return cls(encoding=encoding, **kw).decode(s)
 
 
