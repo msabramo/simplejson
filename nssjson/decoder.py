@@ -367,72 +367,86 @@ class JSONDecoder(object):
 
     It also understands ``NaN``, ``Infinity``, and ``-Infinity`` as
     their corresponding ``float`` values, which is outside the JSON spec.
-
     """
 
-    def __init__(self, encoding=None, object_hook=None, parse_float=None,
-                 parse_int=None, parse_constant=None, strict=True,
-                 object_pairs_hook=None, iso_datetime=False):
+    SENSIBLE_DEFAULTS = {
+        'encoding': None,
+        'iso_datetime': False,
+        'object_hook': None,
+        'object_pairs_hook': None,
+        'parse_constant': None,
+        'parse_float': None,
+        'parse_int': None,
+        'strict': True,
+    }
+    def __init__(self, **kw):
+        """Constructor for JSONDecoder.
+
+        :keyword bool iso_datetime: if ``True``, then it will activate the recognition of JSON
+          strings containing ISO formatted timestamps, dates and times that will be decoded as
+          :class:`datetime.datetime`, :class:`datetime.date` and :class:`datetime.time`
+          respectively [default: ``False``]
+
+        :keyword str encoding: determines the encoding used to interpret any :class:`str`
+          objects decoded by this instance; note that currently only encodings that are a
+          superset of ASCII work, strings of other encodings should be passed in as
+          :class:`unicode` [default: ``None``]
+
+        :keyword callable object_hook: if specified, will be called with the result of every
+          JSON object decoded and its return value will be used in place of the given
+          :class:`dict`; this can be used to provide custom deserializations (e.g. to support
+          JSON-RPC class hinting) [default: ``None``]
+
+        :keyword callable object_pairs_hook: if specified, a function that will be called with
+          the result of any object literal decode with an ordered list of pairs and its return
+          value will be used instead of the :class:`dict`; this feature can be used to
+          implement custom decoders that rely on the order that the key and value pairs are
+          decoded (for example, :func:`collections.OrderedDict` will remember the order of
+          insertion); if `object_hook` is also defined, `object_pairs_hook` takes priority
+          [default: ``None``]
+
+        :keyword callable parse_constant: if specified, a function that will be called with one
+          of the following strings: ``'-Infinity'``, ``'Infinity'``, ``'NaN'``; this can be
+          used to raise an exception if invalid JSON numbers are encountered [default:
+          ``None``]
+
+        :keyword callable parse_float: if specified, a function that will be called with the
+          string of every JSON float to be decoded; this can be used to use another datatype or
+          parser for JSON floats (e.g. :class:`decimal.Decimal`) [default: ``float(num_str)``]
+
+        :keyword X parse_int: if specified, a function that will be called with the string of
+          every JSON int to be decoded; this can be used to use another datatype or parser for
+          JSON integers (e.g. :class:`float`) [default: ``int(num_str)``]
+
+        :keyword bool strict: controls the parser's behavior when it encounters an invalid
+          control character in a string: ``True`` means that unescaped control characters are
+          parse errors, if ``False`` then control characters will be allowed in strings
+          [default: ``True``]
         """
-        *encoding* determines the encoding used to interpret any
-        :class:`str` objects decoded by this instance (``'utf-8'`` by
-        default).  It has no effect when decoding :class:`unicode` objects.
 
-        Note that currently only encodings that are a superset of ASCII work,
-        strings of other encodings should be passed in as :class:`unicode`.
+        defaults = self.SENSIBLE_DEFAULTS
 
-        *object_hook*, if specified, will be called with the result of every
-        JSON object decoded and its return value will be used in place of the
-        given :class:`dict`.  This can be used to provide custom
-        deserializations (e.g. to support JSON-RPC class hinting).
-
-        *object_pairs_hook* is an optional function that will be called with
-        the result of any object literal decode with an ordered list of pairs.
-        The return value of *object_pairs_hook* will be used instead of the
-        :class:`dict`.  This feature can be used to implement custom decoders
-        that rely on the order that the key and value pairs are decoded (for
-        example, :func:`collections.OrderedDict` will remember the order of
-        insertion). If *object_hook* is also defined, the *object_pairs_hook*
-        takes priority.
-
-        *parse_float*, if specified, will be called with the string of every
-        JSON float to be decoded.  By default, this is equivalent to
-        ``float(num_str)``. This can be used to use another datatype or parser
-        for JSON floats (e.g. :class:`decimal.Decimal`).
-
-        *parse_int*, if specified, will be called with the string of every
-        JSON int to be decoded.  By default, this is equivalent to
-        ``int(num_str)``.  This can be used to use another datatype or parser
-        for JSON integers (e.g. :class:`float`).
-
-        *parse_constant*, if specified, will be called with one of the
-        following strings: ``'-Infinity'``, ``'Infinity'``, ``'NaN'``.  This
-        can be used to raise an exception if invalid JSON numbers are
-        encountered.
-
-        *iso_datetime*, if true (by default it's false), means that the parse
-        will recognize ISO formatted date and datetimes and will return
-        :class:`datetime.date` and :class:`datetime.datetime` respectively.
-
-        *strict* controls the parser's behavior when it encounters an
-        invalid control character in a string. The default setting of
-        ``True`` means that unescaped control characters are parse errors, if
-        ``False`` then control characters will be allowed in strings.
-
-        """
+        encoding = kw.get('encoding', defaults['encoding'])
         if encoding is None:
             encoding = DEFAULT_ENCODING
         self.encoding = encoding
+        object_hook = kw.get('object_hook', defaults['object_hook'])
         self.object_hook = object_hook
+        object_pairs_hook = kw.get('object_pairs_hook', defaults['object_pairs_hook'])
         self.object_pairs_hook = object_pairs_hook
+        parse_float = kw.get('parse_float', defaults['parse_float'])
         self.parse_float = parse_float or float
+        parse_int = kw.get('parse_int', defaults['parse_int'])
         self.parse_int = parse_int or int
+        parse_constant = kw.get('parse_constant', defaults['parse_constant'])
         self.parse_constant = parse_constant or _CONSTANTS.__getitem__
+        strict = kw.get('strict', defaults['strict'])
         self.strict = strict
+        iso_datetime = kw.get('iso_datetime', defaults['iso_datetime'])
+        self.iso_datetime = iso_datetime
         self.parse_object = JSONObject
         self.parse_array = JSONArray
         self.parse_string = scanstring
-        self.iso_datetime = iso_datetime
         self.memo = {}
         self.scan_once = make_scanner(self)
 

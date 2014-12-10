@@ -114,119 +114,150 @@ class JSONEncoder(object):
     ``.default()`` method with another method that returns a serializable
     object for ``o`` if possible, otherwise it should call the superclass
     implementation (to raise ``TypeError``).
-
     """
+
+    SENSIBLE_DEFAULTS = {
+        'allow_nan': True,
+        'bigint_as_string': False,
+        'check_circular': True,
+        'default': None,
+        'encoding': 'utf-8',
+        'ensure_ascii': True,
+        'for_json': False,
+        'ignore_nan': False,
+        'indent': None,
+        'iso_datetime': False,
+        'item_sort_key': None,
+        'namedtuple_as_object': True,
+        'separators': None,
+        'skipkeys': False,
+        'sort_keys': False,
+        'tuple_as_array': True,
+        'use_decimal': True,
+        'utc_datetime': False,
+    }
+
     item_separator = ', '
     key_separator = ': '
-    def __init__(self, skipkeys=False, ensure_ascii=True,
-            check_circular=True, allow_nan=True, sort_keys=False,
-            indent=None, separators=None, encoding='utf-8', default=None,
-            use_decimal=True, iso_datetime=False, utc_datetime=False,
-            namedtuple_as_object=True, tuple_as_array=True, bigint_as_string=False,
-            item_sort_key=None, for_json=False, ignore_nan=False):
-        """Constructor for JSONEncoder, with sensible defaults.
+    def __init__(self, **kw):
+        """Constructor for JSONEncoder.
 
-        If skipkeys is false, then it is a TypeError to attempt
-        encoding of keys that are not str, int, long, float or None.  If
-        skipkeys is True, such items are simply skipped.
+        :keyword bool allow_nan: if ``False``, then it will be a ``ValueError`` to serialize
+          out of range ``float`` values (``nan``, ``inf``, ``-inf``) in strict compliance of
+          the JSON specification, instead of using the JavaScript equivalents (``NaN``,
+          ``Infinity``, ``-Infinity``) [default: ``True``]
 
-        If ensure_ascii is true, the output is guaranteed to be str
-        objects with all incoming unicode characters escaped.  If
-        ensure_ascii is false, the output will be unicode object.
+        :keyword bool bigint_as_string: if ``True``, then ints 2**53 and higher or lower than
+          -2**53 will be encoded as strings. This is to avoid the rounding that happens in
+          Javascript otherwise. Note that this is still a lossy operation that will not
+          round-trip correctly and should be used sparingly [default: ``False``]
 
-        If check_circular is true, then lists, dicts, and custom encoded
-        objects will be checked for circular references during encoding to
-        prevent an infinite recursion (which would cause an OverflowError).
-        Otherwise, no such check takes place.
+        :keyword bool check_circular: if ``False``, then the circular reference check for
+          container types will be skipped and a circular reference will result in an
+          ``OverflowError`` (or worse) [default: ``True``]
 
-        If allow_nan is true, then NaN, Infinity, and -Infinity will be
-        encoded as such.  This behavior is not JSON specification compliant,
-        but is consistent with most JavaScript based encoders and decoders.
-        Otherwise, it will be a ValueError to encode such floats.
+        :keyword callable default: a function that gets called for objects that can't otherwise
+          be serialized and should return a serializable version of `obj` or raise
+          ``TypeError``; if ``None`` a ``TypeError`` is generated in such cases [default:
+          ``None``]
 
-        If sort_keys is true, then the output of dictionaries will be
-        sorted by key; this is useful for regression tests to ensure
-        that JSON serializations can be compared on a day-to-day basis.
+        :keyword str encoding: the character encoding for ``str`` instances [default:
+          ``'utf-8'``]
 
-        If indent is a string, then JSON array elements and object members
-        will be pretty-printed with a newline followed by that string repeated
-        for each level of nesting. ``None`` (the default) selects the most compact
-        representation without any newlines. For backwards compatibility with
-        versions of simplejson earlier than 2.1.0, an integer is also accepted
-        and is converted to a string with that many spaces.
+        :keyword bool ensure_ascii: if ``True``, then the output is guaranteed to be str
+          objects with all incoming unicode characters escaped, otherwise it will be unicode
+          object [default: ``True``]
 
-        If specified, separators should be an (item_separator, key_separator)
-        tuple.  The default is (', ', ': ') if *indent* is ``None`` and
-        (',', ': ') otherwise.  To get the most compact JSON representation,
-        you should specify (',', ':') to eliminate whitespace.
+        :keyword bool for_json: if ``True``, then objects with a ``for_json()`` method will use
+          the return value of that method for encoding as JSON instead of the object [default:
+          ``False``]
 
-        If specified, default is a function that gets called for objects
-        that can't otherwise be serialized.  It should return a JSON encodable
-        version of the object or raise a ``TypeError``.
+        :keyword bool ignore_nan: if ``True``, then out of range :class:`float` values
+          (``nan``, ``inf``, ``-inf``) will be serialized as ``null`` in compliance with the
+          ECMA-262 specification, overriding `allow_nan` [default: ``False``]
 
-        If encoding is not None, then all input strings will be
-        transformed into unicode using that encoding prior to JSON-encoding.
-        The default is UTF-8.
+        :keyword str indent: if given, then JSON array elements and object members will be
+          pretty-printed with a newline followed by that string repeated for each level of
+          nesting; a ``None`` value selects the most compact representation without any
+          newlines; an integer is also accepted and is converted to a string with that many
+          spaces [default: ``None``]
 
-        If use_decimal is true (not the default), ``decimal.Decimal`` will
-        be supported directly by the encoder. For the inverse, decode JSON
-        with ``parse_float=decimal.Decimal``.
+        :keyword bool iso_datetime: if ``True``, then ``datetime.datetime``, ``datetime.date``
+          and ``datetime.time`` will be directly supported; otherwise they will raise a
+          ``ValueError`` (if not handled by the `default` function) [default: ``False``]
 
-        If iso_datetime is true (the default is false), ``datetime.datetime``,
-        ``datetime.date`` and ``datetime.time`` will be supported directly by
-        the encoder.
+        :keyword callable item_sort_key: used to sort the items in each dictionary, useful if
+          you want to sort items other than in alphabetical order by key; this option takes
+          precedence over `sort_keys` [default: ``None``]
 
-        If utc_datetime is true (the default is false), timezone aware
-        datetimes are converted to UTC upon serialization.
+        :keyword bool namedtuple_as_object: if ``True``, then tuple subclasses with
+          ``_asdict()`` methods will be encoded as JSON objects [default: ``True``]
 
-        If namedtuple_as_object is true (the default), objects with
-        ``_asdict()`` methods will be encoded as JSON objects.
+        :keyword tuple separators: if given, it should be an ``(item_separator,
+          key_separator)`` tuple; to get the most compact JSON representation, you should
+          specify ``(',', ':')`` to eliminate whitespace [default: ``(', ', ': ')`` if `indent`
+          is ``None`` and ``(',', ': ')`` otherwise]
 
-        If tuple_as_array is true (the default), tuple (and subclasses) will
-        be encoded as JSON arrays.
+        :keyword bool skipkeys: if ``True``, then ``dict`` keys that are not basic types
+          (``str``, ``unicode``, ``int``, ``long``, ``float``, ``bool``, ``None``) will be
+          skipped instead of raising a ``TypeError`` [default: ``False``]
 
-        If bigint_as_string is true (not the default), ints 2**53 and higher
-        or lower than -2**53 will be encoded as strings. This is to avoid the
-        rounding that happens in Javascript otherwise.
+        :keyword bool sort_keys: if ``True``, then the output of dictionaries will be sorted by
+          item [default: ``False``]
 
-        If specified, item_sort_key is a callable used to sort the items in
-        each dictionary. This is useful if you want to sort items other than
-        in alphabetical order by key.
+        :keyword bool tuple_as_array: if ``True``, then tuples (and subclasses) will be encoded
+          as JSON arrays [default: ``True``]
 
-        If for_json is true (not the default), objects with a ``for_json()``
-        method will use the return value of that method for encoding as JSON
-        instead of the object.
+        :keyword bool use_decimal: if ``True``, then :class:`decimal.Decimal` will be natively
+          serialized to JSON with full precision [default: ``True``]
 
-        If *ignore_nan* is true (default: ``False``), then out of range
-        :class:`float` values (``nan``, ``inf``, ``-inf``) will be serialized
-        as ``null`` in compliance with the ECMA-262 specification. If true,
-        this will override *allow_nan*.
-
+        :keyword bool utc_datetime: if ``True``, then timezone aware datetimes are converted to
+          UTC upon serialization [default: ``False``]
         """
 
+        defaults = self.SENSIBLE_DEFAULTS
+
+        skipkeys = kw.get('skipkeys', defaults['skipkeys'])
         self.skipkeys = skipkeys
+        ensure_ascii = kw.get('ensure_ascii', defaults['ensure_ascii'])
         self.ensure_ascii = ensure_ascii
+        check_circular = kw.get('check_circular', defaults['check_circular'])
         self.check_circular = check_circular
+        allow_nan = kw.get('allow_nan', defaults['allow_nan'])
         self.allow_nan = allow_nan
+        sort_keys = kw.get('sort_keys', defaults['sort_keys'])
         self.sort_keys = sort_keys
+        use_decimal = kw.get('use_decimal', defaults['use_decimal'])
         self.use_decimal = use_decimal
+        iso_datetime = kw.get('iso_datetime', defaults['iso_datetime'])
         self.iso_datetime = iso_datetime
+        utc_datetime = kw.get('utc_datetime', defaults['utc_datetime'])
         self.utc_datetime = utc_datetime
+        namedtuple_as_object = kw.get('namedtuple_as_object', defaults['namedtuple_as_object'])
         self.namedtuple_as_object = namedtuple_as_object
+        tuple_as_array = kw.get('tuple_as_array', defaults['tuple_as_array'])
         self.tuple_as_array = tuple_as_array
+        bigint_as_string = kw.get('bigint_as_string', defaults['bigint_as_string'])
         self.bigint_as_string = bigint_as_string
+        item_sort_key = kw.get('item_sort_key', defaults['item_sort_key'])
         self.item_sort_key = item_sort_key
+        for_json = kw.get('for_json', defaults['for_json'])
         self.for_json = for_json
+        ignore_nan = kw.get('ignore_nan', defaults['ignore_nan'])
         self.ignore_nan = ignore_nan
+        indent = kw.get('indent', defaults['indent'])
         if indent is not None and not isinstance(indent, string_types):
             indent = indent * ' '
         self.indent = indent
+        separators = kw.get('separators', defaults['separators'])
         if separators is not None:
             self.item_separator, self.key_separator = separators
         elif indent is not None:
             self.item_separator = ','
+        default = kw.get('default', defaults['default'])
         if default is not None:
             self.default = default
+        encoding = kw.get('encoding', defaults['encoding'])
         self.encoding = encoding
 
     def default(self, o):
