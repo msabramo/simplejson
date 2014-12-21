@@ -5,9 +5,11 @@
 .DS_Store
 /.coverage
 /.emacs.desktop.lock
+/MANIFEST
 /build
 /coverage.xml
 /dist
 /docs
 /emacs.desktop
 /htmlcov
+__pycache__/
