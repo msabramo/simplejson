@@ -1,6 +1,16 @@
 Changes
 -------
 
+0.5 (unreleased)
+~~~~~~~~~~~~~~~~
+
+* Fix memory leak when an error occurs encoding dict items
+
+* Overhaul of load() and dump() signatures
+
+* Drop Sphinx documentation
+
+
 0.4 (2014-06-28)
 ~~~~~~~~~~~~~~~~
 
