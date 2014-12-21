@@ -13,12 +13,16 @@ nssjson__ is a fork of simplejson__ that fulfills my need of having a good perfo
 encoder/decoder able to handle also Python's datetime, even if with an admittedly non-standard
 and faulty heuristic that was `not considered`__ within the scope of the original product.
 
-Practically, the difference is that, out of the box, you have::
+Practically, the difference is that, out of the box, you have:
+
+.. code-block:: python
 
     >>> import datetime
     >>> import nssjson
     >>> now = datetime.datetime.now()
-    >>> nssjson.loads(nssjson.dumps(now, iso_datetime=True), iso_datetime=True) == now
+    >>> nssjson.loads(
+    ...     nssjson.dumps(now, iso_datetime=True),
+    ...     iso_datetime=True) == now
     True
 
 __ https://github.com/lelit/nssjson
