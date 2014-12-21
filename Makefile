@@ -68,3 +68,12 @@ pypi-upload: assert-nssjson-branch assert-clean-tree
 publish: pypi-upload
 	git push
 	git push --tags
+
+.PHONY: test
+test:
+	python2.7 setup.py test
+	python3.4 setup.py test
+	tf=$(shell tempfile --suffix .py) \
+	    && python3.4 -c "import nssjson; print(repr(nssjson.__doc__))" > $$tf \
+	    && python3.4 -m doctest $$tf \
+	    && rm $$tf
